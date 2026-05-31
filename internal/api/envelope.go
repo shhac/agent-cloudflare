@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 
 	agenterrors "github.com/shhac/agent-cloudflare/internal/errors"
 )
@@ -34,10 +35,16 @@ func DecodeEnvelope(body []byte) (json.RawMessage, *ResultInfo, error) {
 	}
 	if !env.Success {
 		msg := "Cloudflare API request failed"
+		code := 0
 		if len(env.Errors) > 0 && env.Errors[0].Message != "" {
 			msg = env.Errors[0].Message
+			code = env.Errors[0].Code
 		}
-		return nil, env.ResultInfo, agenterrors.New(msg, agenterrors.FixableByAgent)
+		hints := []string{"Cloudflare returned success=false for a 2xx response; check the command arguments and resource scope"}
+		if code != 0 {
+			hints = append([]string{fmt.Sprintf("Cloudflare code: %d", code)}, hints...)
+		}
+		return nil, env.ResultInfo, agenterrors.New(msg, agenterrors.FixableByAgent).WithHints(hints...)
 	}
 	return env.Result, env.ResultInfo, nil
 }

@@ -88,7 +88,8 @@ func registerAdd(parent *cobra.Command) {
 				profile.Zones = map[string]string{zoneName: zoneID}
 			}
 			if err := config.StoreProfile(alias, profile); err != nil {
-				output.WriteError(output.Stderr(), agenterrors.Wrap(err, agenterrors.FixableByHuman))
+				output.WriteError(output.Stderr(), agenterrors.Wrap(err, agenterrors.FixableByHuman).
+					WithHint("Check that the config directory is writable"))
 				return nil
 			}
 			shared.WriteItem(map[string]any{
@@ -131,7 +132,8 @@ func registerUpdate(parent *cobra.Command) {
 				return nil
 			}
 			if _, ok := config.Read().Profiles[alias]; !ok {
-				output.WriteError(output.Stderr(), agenterrors.Newf(agenterrors.FixableByHuman, "profile %q is not configured", alias))
+				output.WriteError(output.Stderr(), agenterrors.Newf(agenterrors.FixableByHuman, "profile %q is not configured", alias).
+					WithHint("Run 'agent-cloudflare profiles list' to see profiles or 'agent-cloudflare profiles add "+alias+" --form' to create it"))
 				return nil
 			}
 			credentialType := ""
@@ -151,7 +153,8 @@ func registerUpdate(parent *cobra.Command) {
 				var err error
 				storage, err = credentialStore(alias, apiToken)
 				if err != nil {
-					output.WriteError(output.Stderr(), agenterrors.Wrap(err, agenterrors.FixableByHuman))
+					output.WriteError(output.Stderr(), agenterrors.Wrap(err, agenterrors.FixableByHuman).
+						WithHint("Use --form on a local graphical machine so the token can be stored in Keychain"))
 					return nil
 				}
 				credentialType = credential.Type(apiToken)
@@ -189,12 +192,14 @@ func registerUpdate(parent *cobra.Command) {
 				}
 				return profile
 			}); err != nil {
-				output.WriteError(output.Stderr(), agenterrors.Wrap(err, agenterrors.FixableByHuman))
+				output.WriteError(output.Stderr(), agenterrors.Wrap(err, agenterrors.FixableByHuman).
+					WithHint("Run 'agent-cloudflare profiles list' to see configured profiles"))
 				return nil
 			}
 			if setDefault {
 				if err := config.SetDefault(alias); err != nil {
-					output.WriteError(output.Stderr(), err)
+					output.WriteError(output.Stderr(), agenterrors.Wrap(err, agenterrors.FixableByHuman).
+						WithHint("Run 'agent-cloudflare profiles list' to see configured profiles"))
 					return nil
 				}
 			}
@@ -336,7 +341,8 @@ func registerDiscover(parent *cobra.Command, globals shared.GlobalsFunc) {
 					}
 					return profile
 				}); err != nil {
-					return agenterrors.Wrap(err, agenterrors.FixableByHuman)
+					return agenterrors.Wrap(err, agenterrors.FixableByHuman).
+						WithHint("Check that the config directory is writable and rerun profiles discover")
 				}
 				shared.WriteItem(map[string]any{
 					"status":             "discovered",

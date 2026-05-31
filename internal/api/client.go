@@ -76,6 +76,9 @@ func (c *Client) GraphQL(ctx context.Context, query string, variables map[string
 	if resp.status >= 400 {
 		return nil, classifyHTTPError(resp.status, resp.body)
 	}
+	if err := classifyGraphQLError(resp.body); err != nil {
+		return nil, err
+	}
 	return json.RawMessage(resp.body), nil
 }
 
@@ -281,7 +284,8 @@ func (c *Client) sendRaw(ctx context.Context, method, path string, body any) (*r
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, agenterrors.Wrap(err, agenterrors.FixableByRetry)
+		return nil, agenterrors.Wrap(err, agenterrors.FixableByRetry).
+			WithHint("Cloudflare response body could not be read; retry the command")
 	}
 	if c.debug {
 		w := output.NewNDJSONWriter(output.Stderr())
@@ -299,13 +303,15 @@ func (c *Client) buildRequest(ctx context.Context, method, path string, body any
 	if body != nil {
 		b, err := json.Marshal(body)
 		if err != nil {
-			return nil, agenterrors.Wrap(err, agenterrors.FixableByAgent)
+			return nil, agenterrors.Wrap(err, agenterrors.FixableByAgent).
+				WithHint("The CLI could not encode the request body; check command flags and values")
 		}
 		bodyReader = bytes.NewReader(b)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, bodyReader)
 	if err != nil {
-		return nil, agenterrors.Wrap(err, agenterrors.FixableByAgent)
+		return nil, agenterrors.Wrap(err, agenterrors.FixableByAgent).
+			WithHint("The CLI constructed an invalid request path; check the command arguments")
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Content-Type", "application/json")

@@ -50,7 +50,8 @@ func ParseFormat(s string) (Format, error) {
 	case "jsonl", "ndjson":
 		return FormatNDJSON, nil
 	default:
-		return "", agenterrors.Newf(agenterrors.FixableByAgent, "unknown format %q, expected: json, yaml, jsonl", s)
+		return "", agenterrors.Newf(agenterrors.FixableByAgent, "unknown format %q, expected: json, yaml, jsonl", s).
+			WithHint("Use --format json, --format yaml, or --format jsonl")
 	}
 }
 

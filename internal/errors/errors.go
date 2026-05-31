@@ -3,6 +3,7 @@ package errors
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 type FixableBy string
@@ -40,6 +41,19 @@ func Wrap(err error, fixableBy FixableBy) *APIError {
 
 func (e *APIError) WithHint(hint string) *APIError {
 	e.Hint = hint
+	return e
+}
+
+func (e *APIError) WithHints(parts ...string) *APIError {
+	filtered := []string{}
+	for _, part := range parts {
+		if part != "" {
+			filtered = append(filtered, part)
+		}
+	}
+	if len(filtered) > 0 {
+		e.Hint = strings.Join(filtered, "; ")
+	}
 	return e
 }
 

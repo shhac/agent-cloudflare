@@ -11,13 +11,14 @@ import (
 
 func requireMutationMode(dryRun, confirm bool) error {
 	if dryRun && confirm {
-		return agenterrors.New("--dry-run and --confirm cannot be used together", agenterrors.FixableByAgent)
+		return agenterrors.New("--dry-run and --confirm cannot be used together", agenterrors.FixableByAgent).
+			WithHint("Use --dry-run to preview the request, then rerun with --confirm only after user approval")
 	}
 	if dryRun || confirm {
 		return nil
 	}
 	return agenterrors.New("mutation requires --dry-run or --confirm", agenterrors.FixableByAgent).
-		WithHint("Use --dry-run to preview the request, or --confirm to send it")
+		WithHint("Use --dry-run to preview the request, or --confirm to send it after explicit user approval")
 }
 
 func writeDryRun(client *api.Client, flags *shared.GlobalFlags, method, path string, body map[string]any) {

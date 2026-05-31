@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	agenterrors "github.com/shhac/agent-cloudflare/internal/errors"
 )
@@ -17,22 +16,33 @@ func classifyHTTPError(status int, body []byte) *agenterrors.APIError {
 
 	switch {
 	case status == 401:
-		return withHint(agenterrors.New("Authentication failed: "+msg, agenterrors.FixableByHuman),
-			append(hints, "Check the stored profile with 'agent-cloudflare profiles check' or re-add it with a valid API token")...)
+		return agenterrors.New("Authentication failed: "+msg, agenterrors.FixableByHuman).
+			WithHints(append(hints,
+				"Run 'agent-cloudflare profiles check' to verify the active profile",
+				"Re-add the token with 'agent-cloudflare profiles update <profile> --form' if it was revoked or copied incorrectly")...)
 	case status == 403:
-		return withHint(agenterrors.New("Permission denied: "+msg, agenterrors.FixableByHuman),
-			append(hints, "The token may need a narrower or broader Cloudflare permission group for this account or zone")...)
+		return agenterrors.New("Permission denied: "+msg, agenterrors.FixableByHuman).
+			WithHints(append(hints,
+				"The token may need additional Cloudflare permission groups for this account or zone",
+				"Confirm --account-id/--zone-id target the resource granted to the token")...)
 	case status == 404:
-		return withHint(agenterrors.New("Not found: "+msg, agenterrors.FixableByAgent),
-			append(hints, "Check the account ID, zone ID, zone name, or resource ID; list commands can rediscover valid IDs")...)
+		return agenterrors.New("Not found: "+msg, agenterrors.FixableByAgent).
+			WithHints(append(hints,
+				"Check the account ID, zone ID, zone name, or resource ID",
+				"Use list commands such as 'agent-cloudflare zones list' or 'agent-cloudflare dns list <zone>' to rediscover valid IDs")...)
 	case status == 429:
-		return withHint(agenterrors.New("Rate limited: "+msg, agenterrors.FixableByRetry),
-			append(hints, "Wait and retry; reduce --per-page or scope the command to one account/zone")...)
+		return agenterrors.New("Rate limited: "+msg, agenterrors.FixableByRetry).
+			WithHints(append(hints,
+				"Wait and retry",
+				"Reduce the command scope to one account/zone or a smaller time window")...)
 	case status >= 500:
-		return withHint(agenterrors.New("Cloudflare API error: "+msg, agenterrors.FixableByRetry),
-			append(hints, "Cloudflare returned a server error; retry later")...)
+		return agenterrors.New("Cloudflare API error: "+msg, agenterrors.FixableByRetry).
+			WithHints(append(hints,
+				"Cloudflare returned a server error; retry later",
+				"Use --debug to capture redacted request metadata if the issue persists")...)
 	default:
-		return withHint(agenterrors.New(msg, agenterrors.FixableByAgent), hints...)
+		return agenterrors.New(msg, agenterrors.FixableByAgent).
+			WithHints(append(hints, "Check the command arguments and Cloudflare resource identifiers")...)
 	}
 }
 
@@ -67,15 +77,30 @@ func extractErrorMessage(status int, body []byte) (string, int) {
 	return fmt.Sprintf("HTTP %d", status), 0
 }
 
-func withHint(err *agenterrors.APIError, parts ...string) *agenterrors.APIError {
-	filtered := []string{}
-	for _, part := range parts {
-		if part != "" {
-			filtered = append(filtered, part)
-		}
+func classifyGraphQLError(body []byte) *agenterrors.APIError {
+	var parsed struct {
+		Errors []struct {
+			Message    string `json:"message"`
+			Path       []any  `json:"path"`
+			Extensions struct {
+				Code string `json:"code"`
+			} `json:"extensions"`
+		} `json:"errors"`
 	}
-	if len(filtered) > 0 {
-		err.Hint = strings.Join(filtered, "; ")
+	if err := json.Unmarshal(body, &parsed); err != nil || len(parsed.Errors) == 0 {
+		return nil
 	}
-	return err
+	first := parsed.Errors[0]
+	msg := first.Message
+	if msg == "" {
+		msg = "Cloudflare GraphQL query failed"
+	}
+	hints := []string{
+		"Check that the token has Analytics Read permissions for the zone/account",
+		"GraphQL analytics availability can vary by plan, dataset, and time window",
+	}
+	if first.Extensions.Code != "" {
+		hints = append([]string{"GraphQL code: " + first.Extensions.Code}, hints...)
+	}
+	return agenterrors.New("Cloudflare GraphQL error: "+msg, agenterrors.FixableByHuman).WithHints(hints...)
 }

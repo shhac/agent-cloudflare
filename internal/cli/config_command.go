@@ -44,7 +44,8 @@ func registerConfig(root *cobra.Command) {
 			}
 			var value int
 			if _, err := fmtSscanf(args[1], "%d", &value); err != nil {
-				output.WriteError(output.Stderr(), agenterrors.Wrap(err, agenterrors.FixableByAgent))
+				output.WriteError(output.Stderr(), agenterrors.Wrap(err, agenterrors.FixableByAgent).
+					WithHint("Use an integer value, for example: agent-cloudflare config set timeout_ms 10000"))
 				return nil
 			}
 			if err := config.SetDefaultValue(args[0], value); err != nil {

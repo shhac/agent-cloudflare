@@ -137,7 +137,7 @@ func resolveWaitingRoomScope(ctx context.Context, client *api.Client, resolved *
 	if account {
 		if resolved.AccountID == "" {
 			return "", "", agenterrors.New("--account-id is required for account-scoped Waiting Rooms", agenterrors.FixableByAgent).
-				WithHint("Pass --account-id or store one with profiles update")
+				WithHint("Pass --account-id or store one with 'agent-cloudflare profiles discover <profile>'")
 		}
 		return "accounts", resolved.AccountID, nil
 	}

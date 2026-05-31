@@ -10,5 +10,5 @@ func requireAccountID(resolved *shared.ResolvedProfile) (string, error) {
 		return resolved.AccountID, nil
 	}
 	return "", agenterrors.New("--account-id is required", agenterrors.FixableByAgent).
-		WithHint("Pass --account-id or store one with 'agent-cloudflare profiles update <profile> --account-id <account_id>'")
+		WithHint("Pass --account-id, run 'agent-cloudflare profiles discover <profile>', or store one with 'agent-cloudflare profiles update <profile> --account-id <account_id>'")
 }

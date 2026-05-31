@@ -74,7 +74,7 @@ func resolveZoneID(ctx context.Context, client *api.Client, resolved *shared.Res
 			return resolved.ZoneID, nil
 		}
 		return "", agenterrors.New("zone is required", agenterrors.FixableByAgent).
-			WithHint("Pass a zone name/ID, set --zone-id, or store a default zone with auth update")
+			WithHint("Pass a zone name/ID, set --zone-id, or store a default zone with 'agent-cloudflare profiles discover <profile> --zone <zone>'")
 	}
 	if looksLikeCloudflareID(value) {
 		return value, nil
@@ -104,10 +104,12 @@ func resolveZoneID(ctx context.Context, client *api.Client, resolved *shared.Res
 		ID string `json:"id"`
 	}
 	if err := json.Unmarshal(items[0], &zone); err != nil {
-		return "", agenterrors.Wrap(err, agenterrors.FixableByAgent)
+		return "", agenterrors.Wrap(err, agenterrors.FixableByAgent).
+			WithHint("Cloudflare returned an unexpected zone shape; use --debug and retry")
 	}
 	if zone.ID == "" {
-		return "", agenterrors.New("Cloudflare zone result did not include an id", agenterrors.FixableByRetry)
+		return "", agenterrors.New("Cloudflare zone result did not include an id", agenterrors.FixableByRetry).
+			WithHint("Retry the command, or use 'agent-cloudflare zones list --format json' to inspect the returned zone object")
 	}
 	return zone.ID, nil
 }

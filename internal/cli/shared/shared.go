@@ -169,7 +169,8 @@ func RawItemsToAny(items []json.RawMessage) ([]any, error) {
 	for _, item := range items {
 		var decoded any
 		if err := json.Unmarshal(item, &decoded); err != nil {
-			return nil, agenterrors.Wrap(err, agenterrors.FixableByAgent)
+			return nil, agenterrors.Wrap(err, agenterrors.FixableByAgent).
+				WithHint("Cloudflare returned a list item the CLI could not decode; retry with --format json or --debug")
 		}
 		out = append(out, decoded)
 	}

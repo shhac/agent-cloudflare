@@ -75,7 +75,8 @@ func registerDNSCreate(parent *cobra.Command, globals shared.GlobalsFunc) {
 				return err
 			}
 			if recordType == "" || name == "" || content == "" {
-				return agenterrors.New("--type, --name, and --content are required", agenterrors.FixableByAgent)
+				return agenterrors.New("--type, --name, and --content are required", agenterrors.FixableByAgent).
+					WithHint("Example: agent-cloudflare dns create example.com --type CNAME --name app --content target.example.com --dry-run")
 			}
 			flags := globals()
 			return shared.WithClient(flags, func(ctx context.Context, client *api.Client, resolved *shared.ResolvedProfile) error {

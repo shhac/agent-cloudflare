@@ -199,6 +199,21 @@ func TestMissingZoneReturnsJSONErrorHint(t *testing.T) {
 	}
 }
 
+func TestAccountScopeErrorHasDiscoveryHint(t *testing.T) {
+	baseURL := withMockServer(t)
+	result := runCommand(t, "--base-url", baseURL, "--api-token", "cfut_mock", "workers", "list")
+	if result.err != nil {
+		t.Fatalf("Execute() error = %v", result.err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(result.stderr), &payload); err != nil {
+		t.Fatalf("stderr is not JSON: %s", result.stderr)
+	}
+	if payload["fixable_by"] != "agent" || !strings.Contains(payload["hint"].(string), "profiles discover") {
+		t.Fatalf("payload = %#v, want profiles discover hint", payload)
+	}
+}
+
 func TestZoneHealthInvestigationEmitsEvidence(t *testing.T) {
 	baseURL := withMockServer(t)
 	result := runCommand(t, "--base-url", baseURL, "--api-token", "cfut_mock", "investigate", "zone-health", "example.com")
@@ -283,6 +298,21 @@ func TestMutationCommandsRequireDryRunOrConfirm(t *testing.T) {
 	}
 	if payload["fixable_by"] != "agent" || payload["hint"] == "" {
 		t.Fatalf("payload = %#v, want agent error with hint", payload)
+	}
+}
+
+func TestMutationModeConflictHasPreviewHint(t *testing.T) {
+	baseURL := withMockServer(t)
+	result := runExecute(t, "--base-url", baseURL, "--api-token", "cfut_mock", "cache", "purge", "example.com", "--url", "https://example.com/a", "--dry-run", "--confirm")
+	if result.err == nil {
+		t.Fatalf("expected command error with conflicting mutation flags")
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(result.stderr), &payload); err != nil {
+		t.Fatalf("stderr is not JSON: %s", result.stderr)
+	}
+	if !strings.Contains(payload["hint"].(string), "preview") {
+		t.Fatalf("payload = %#v, want preview hint", payload)
 	}
 }
 
