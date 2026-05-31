@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/url"
 
@@ -91,20 +92,17 @@ func registerDNSCreate(parent *cobra.Command, globals shared.GlobalsFunc) {
 					body["ttl"] = ttl
 				}
 				path := "/zones/" + zoneID + "/dns_records"
-				if dryRun {
-					writeDryRun(client, flags, http.MethodPost, path, body)
-					return nil
-				}
-				raw, err := client.CreateDNSRecord(ctx, zoneID, body)
-				if err != nil {
-					return err
-				}
-				decoded, err := decodeRaw(raw)
-				if err != nil {
-					return err
-				}
-				shared.WriteItem(mutationResult("dns.create", decoded), flags.Format)
-				return nil
+				return executeMutation(ctx, client, flags, mutationRequest{
+					DryRun:  dryRun,
+					Confirm: confirm,
+					Method:  http.MethodPost,
+					Path:    path,
+					Body:    body,
+					Action:  "dns.create",
+					Send: func(ctx context.Context) (json.RawMessage, error) {
+						return client.CreateDNSRecord(ctx, zoneID, body)
+					},
+				})
 			})
 		},
 	}
@@ -163,20 +161,17 @@ func registerDNSUpdate(parent *cobra.Command, globals shared.GlobalsFunc) {
 					return err
 				}
 				path := "/zones/" + zoneID + "/dns_records/" + args[0]
-				if dryRun {
-					writeDryRun(client, flags, http.MethodPatch, path, body)
-					return nil
-				}
-				raw, err := client.UpdateDNSRecord(ctx, zoneID, args[0], body)
-				if err != nil {
-					return err
-				}
-				decoded, err := decodeRaw(raw)
-				if err != nil {
-					return err
-				}
-				shared.WriteItem(mutationResult("dns.update", decoded), flags.Format)
-				return nil
+				return executeMutation(ctx, client, flags, mutationRequest{
+					DryRun:  dryRun,
+					Confirm: confirm,
+					Method:  http.MethodPatch,
+					Path:    path,
+					Body:    body,
+					Action:  "dns.update",
+					Send: func(ctx context.Context) (json.RawMessage, error) {
+						return client.UpdateDNSRecord(ctx, zoneID, args[0], body)
+					},
+				})
 			})
 		},
 	}

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/spf13/cobra"
@@ -104,20 +105,17 @@ func registerWaitingRoomUpdate(parent *cobra.Command, globals shared.GlobalsFunc
 					return err
 				}
 				path := "/zones/" + zoneID + "/waiting_rooms/" + args[0]
-				if dryRun {
-					writeDryRun(client, flags, http.MethodPatch, path, body)
-					return nil
-				}
-				raw, err := client.UpdateWaitingRoom(ctx, zoneID, args[0], body)
-				if err != nil {
-					return err
-				}
-				decoded, err := decodeRaw(raw)
-				if err != nil {
-					return err
-				}
-				shared.WriteItem(mutationResult("waiting_room.update", decoded), flags.Format)
-				return nil
+				return executeMutation(ctx, client, flags, mutationRequest{
+					DryRun:  dryRun,
+					Confirm: confirm,
+					Method:  http.MethodPatch,
+					Path:    path,
+					Body:    body,
+					Action:  "waiting_room.update",
+					Send: func(ctx context.Context) (json.RawMessage, error) {
+						return client.UpdateWaitingRoom(ctx, zoneID, args[0], body)
+					},
+				})
 			})
 		},
 	}

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/spf13/cobra"
@@ -106,20 +107,17 @@ func registerCachePurge(parent *cobra.Command, globals shared.GlobalsFunc) {
 					body["reason"] = reason
 				}
 				path := "/zones/" + zoneID + "/purge_cache"
-				if dryRun {
-					writeDryRun(client, flags, http.MethodPost, path, body)
-					return nil
-				}
-				raw, err := client.PurgeCache(ctx, zoneID, body)
-				if err != nil {
-					return err
-				}
-				decoded, err := decodeRaw(raw)
-				if err != nil {
-					return err
-				}
-				shared.WriteItem(mutationResult("cache.purge", decoded), flags.Format)
-				return nil
+				return executeMutation(ctx, client, flags, mutationRequest{
+					DryRun:  dryRun,
+					Confirm: confirm,
+					Method:  http.MethodPost,
+					Path:    path,
+					Body:    body,
+					Action:  "cache.purge",
+					Send: func(ctx context.Context) (json.RawMessage, error) {
+						return client.PurgeCache(ctx, zoneID, body)
+					},
+				})
 			})
 		},
 	}
