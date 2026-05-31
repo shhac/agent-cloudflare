@@ -97,6 +97,24 @@ func TestHelpHidesAuthAlias(t *testing.T) {
 	}
 }
 
+func TestCompletionCommandAvailable(t *testing.T) {
+	zsh := runCommand(t, "completion", "zsh")
+	if zsh.err != nil || zsh.stderr != "" {
+		t.Fatalf("completion zsh err=%v stderr=%s stdout=%s", zsh.err, zsh.stderr, zsh.stdout)
+	}
+	if !strings.Contains(zsh.stdout, "#compdef agent-cloudflare") {
+		t.Fatalf("completion zsh stdout = %s, want compdef", zsh.stdout)
+	}
+
+	bash := runCommand(t, "completion", "bash")
+	if bash.err != nil || bash.stderr != "" {
+		t.Fatalf("completion bash err=%v stderr=%s stdout=%s", bash.err, bash.stderr, bash.stdout)
+	}
+	if !strings.Contains(bash.stdout, "bash completion") {
+		t.Fatalf("completion bash stdout = %s, want bash completion script", bash.stdout)
+	}
+}
+
 func TestHiddenAuthAliasWorks(t *testing.T) {
 	baseURL := withMockServer(t)
 	result := runCommand(t, "--base-url", baseURL, "--api-token", "cfut_mock", "auth", "check")
