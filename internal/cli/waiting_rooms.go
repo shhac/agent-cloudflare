@@ -33,12 +33,7 @@ func registerWaitingRooms(root *cobra.Command, globals shared.GlobalsFunc) {
 				if err != nil {
 					return err
 				}
-				decoded, err := shared.RawItemsToAny(items)
-				if err != nil {
-					return err
-				}
-				shared.WritePaginatedList(decoded, info, flags.Format)
-				return nil
+				return shared.WriteRawPaginatedList(items, info, flags.Format)
 			})
 		},
 	}

@@ -156,6 +156,15 @@ func WritePaginatedList(items []any, info *api.ResultInfo, format string) {
 	output.Print(result, output.ResolveFormat(format, output.FormatJSON), true)
 }
 
+func WriteRawPaginatedList(items []json.RawMessage, info *api.ResultInfo, format string) error {
+	decoded, err := RawItemsToAny(items)
+	if err != nil {
+		return err
+	}
+	WritePaginatedList(decoded, info, format)
+	return nil
+}
+
 func WriteItem(data any, format string) {
 	output.Print(data, output.ResolveFormat(format, output.FormatJSON), true)
 }
