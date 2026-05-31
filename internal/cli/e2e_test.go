@@ -22,7 +22,8 @@ type commandResult struct {
 }
 
 type memoryBackend struct {
-	tokens map[string]string
+	tokens  map[string]string
+	deleted []string
 }
 
 func (m *memoryBackend) Store(name, token string) error {
@@ -38,6 +39,7 @@ func (m *memoryBackend) Get(name string) (string, error) {
 }
 
 func (m *memoryBackend) Delete(name string) {
+	m.deleted = append(m.deleted, name)
 	delete(m.tokens, name)
 }
 
@@ -149,6 +151,67 @@ func TestProfilesDiscoverStoresAccountAndZoneMetadata(t *testing.T) {
 	}
 	if profile.Zones["example.com"] != "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
 		t.Fatalf("profile zones = %#v", profile.Zones)
+	}
+}
+
+func TestProfileLifecycleDoesNotExposeSecrets(t *testing.T) {
+	backend := withTempConfigAndKeychain(t)
+	baseURL := withMockServer(t)
+	secrets := []string{"cfut_prod_secret", "v1.0-dev-secret", "cfut_replacement_secret"}
+
+	addProd := runCommand(t, "--base-url", baseURL, "profiles", "add", "prod", "--api-token", secrets[0], "--account-id", "acct_prod")
+	if addProd.err != nil || addProd.stderr != "" {
+		t.Fatalf("profiles add prod err=%v stderr=%s stdout=%s", addProd.err, addProd.stderr, addProd.stdout)
+	}
+	addDev := runCommand(t, "--base-url", baseURL, "profiles", "add", "dev", "--api-token", secrets[1])
+	if addDev.err != nil || addDev.stderr != "" {
+		t.Fatalf("profiles add dev err=%v stderr=%s stdout=%s", addDev.err, addDev.stderr, addDev.stdout)
+	}
+	update := runCommand(t, "--base-url", baseURL, "profiles", "update", "prod", "--api-token", secrets[2], "--account-name", "Production", "--zone-id", "zone_prod", "--zone", "example.org", "--default")
+	if update.err != nil || update.stderr != "" {
+		t.Fatalf("profiles update err=%v stderr=%s stdout=%s", update.err, update.stderr, update.stdout)
+	}
+	if backend.tokens["prod"] != secrets[2] {
+		t.Fatalf("updated token = %q", backend.tokens["prod"])
+	}
+	cfg := config.Read()
+	prod := cfg.Profiles["prod"]
+	if cfg.DefaultProfile != "prod" || prod.AccountID != "acct_prod" || prod.AccountName != "Production" ||
+		prod.DefaultZoneID != "zone_prod" || prod.DefaultZone != "example.org" || prod.Zones["example.org"] != "zone_prod" {
+		t.Fatalf("profile config = %#v default=%q", prod, cfg.DefaultProfile)
+	}
+
+	list := runCommand(t, "--base-url", baseURL, "profiles", "list")
+	if list.err != nil || list.stderr != "" {
+		t.Fatalf("profiles list err=%v stderr=%s stdout=%s", list.err, list.stderr, list.stdout)
+	}
+	if !strings.Contains(list.stdout, `"profile":"dev"`) || !strings.Contains(list.stdout, `"profile":"prod"`) {
+		t.Fatalf("profiles list stdout = %s", list.stdout)
+	}
+	if strings.Index(list.stdout, `"profile":"dev"`) > strings.Index(list.stdout, `"profile":"prod"`) {
+		t.Fatalf("profiles list should be sorted: %s", list.stdout)
+	}
+
+	remove := runCommand(t, "--base-url", baseURL, "profiles", "remove", "dev")
+	if remove.err != nil || remove.stderr != "" {
+		t.Fatalf("profiles remove err=%v stderr=%s stdout=%s", remove.err, remove.stderr, remove.stdout)
+	}
+	if len(backend.deleted) != 1 || backend.deleted[0] != "dev" {
+		t.Fatalf("deleted = %#v", backend.deleted)
+	}
+	if _, ok := config.Read().Profiles["dev"]; ok {
+		t.Fatalf("dev profile still configured")
+	}
+
+	configBytes, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("ReadFile(config) error = %v", err)
+	}
+	allVisible := addProd.stdout + addProd.stderr + addDev.stdout + addDev.stderr + update.stdout + update.stderr + list.stdout + list.stderr + remove.stdout + remove.stderr + string(configBytes)
+	for _, secret := range secrets {
+		if strings.Contains(allVisible, secret) {
+			t.Fatalf("secret %q leaked in visible output/config:\n%s", secret, allVisible)
+		}
 	}
 }
 
