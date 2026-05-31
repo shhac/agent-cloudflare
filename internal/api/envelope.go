@@ -49,3 +49,17 @@ func DecodeResultList(raw json.RawMessage) ([]json.RawMessage, error) {
 	}
 	return items, nil
 }
+
+func DecodeBucketList(raw json.RawMessage) ([]json.RawMessage, error) {
+	var direct []json.RawMessage
+	if err := json.Unmarshal(raw, &direct); err == nil {
+		return direct, nil
+	}
+	var wrapped struct {
+		Buckets []json.RawMessage `json:"buckets"`
+	}
+	if err := json.Unmarshal(raw, &wrapped); err != nil {
+		return nil, agenterrors.Wrap(err, agenterrors.FixableByAgent).WithHint("Expected Cloudflare R2 result to include a buckets list")
+	}
+	return wrapped.Buckets, nil
+}

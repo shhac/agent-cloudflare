@@ -8,10 +8,14 @@ Cloudflare operations CLI for AI agents.
 
 ```bash
 agent-cloudflare profiles add prod --form --account-id <account_id>
+agent-cloudflare profiles discover prod --zone example.com
 agent-cloudflare profiles check prod
 agent-cloudflare accounts list
 agent-cloudflare zones list
 agent-cloudflare dns list example.com
+agent-cloudflare workers list
+agent-cloudflare kv namespaces list
+agent-cloudflare r2 buckets list
 agent-cloudflare investigate zone-health example.com
 ```
 

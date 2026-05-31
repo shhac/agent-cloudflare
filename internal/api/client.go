@@ -145,6 +145,57 @@ func (c *Client) WaitingRoom(ctx context.Context, zoneID, roomID string) (json.R
 	return raw, err
 }
 
+func (c *Client) Workers(ctx context.Context, accountID string, params url.Values) ([]json.RawMessage, *ResultInfo, error) {
+	raw, info, err := c.Get(ctx, "/accounts/"+url.PathEscape(accountID)+"/workers/scripts", params)
+	if err != nil {
+		return nil, nil, err
+	}
+	items, err := DecodeResultList(raw)
+	return items, info, err
+}
+
+func (c *Client) WorkerSubdomain(ctx context.Context, accountID, scriptName string) (json.RawMessage, error) {
+	raw, _, err := c.Get(ctx, "/accounts/"+url.PathEscape(accountID)+"/workers/scripts/"+url.PathEscape(scriptName)+"/subdomain", nil)
+	return raw, err
+}
+
+func (c *Client) WorkerVersions(ctx context.Context, accountID, scriptName string, params url.Values) ([]json.RawMessage, *ResultInfo, error) {
+	raw, info, err := c.Get(ctx, "/accounts/"+url.PathEscape(accountID)+"/workers/scripts/"+url.PathEscape(scriptName)+"/versions", params)
+	if err != nil {
+		return nil, nil, err
+	}
+	items, err := DecodeResultList(raw)
+	return items, info, err
+}
+
+func (c *Client) KVNamespaces(ctx context.Context, accountID string, params url.Values) ([]json.RawMessage, *ResultInfo, error) {
+	raw, info, err := c.Get(ctx, "/accounts/"+url.PathEscape(accountID)+"/storage/kv/namespaces", params)
+	if err != nil {
+		return nil, nil, err
+	}
+	items, err := DecodeResultList(raw)
+	return items, info, err
+}
+
+func (c *Client) KVNamespace(ctx context.Context, accountID, namespaceID string) (json.RawMessage, error) {
+	raw, _, err := c.Get(ctx, "/accounts/"+url.PathEscape(accountID)+"/storage/kv/namespaces/"+url.PathEscape(namespaceID), nil)
+	return raw, err
+}
+
+func (c *Client) R2Buckets(ctx context.Context, accountID string, params url.Values) ([]json.RawMessage, *ResultInfo, error) {
+	raw, info, err := c.Get(ctx, "/accounts/"+url.PathEscape(accountID)+"/r2/buckets", params)
+	if err != nil {
+		return nil, nil, err
+	}
+	items, err := DecodeBucketList(raw)
+	return items, info, err
+}
+
+func (c *Client) R2Bucket(ctx context.Context, accountID, bucketName string) (json.RawMessage, error) {
+	raw, _, err := c.Get(ctx, "/accounts/"+url.PathEscape(accountID)+"/r2/buckets/"+url.PathEscape(bucketName), nil)
+	return raw, err
+}
+
 func (c *Client) do(ctx context.Context, method, path string, body any) (json.RawMessage, *ResultInfo, error) {
 	req, err := c.buildRequest(ctx, method, path, body)
 	if err != nil {

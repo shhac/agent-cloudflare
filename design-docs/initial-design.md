@@ -84,6 +84,7 @@ Initial wrapped commands:
 ```text
 agent-cloudflare usage
 agent-cloudflare profiles add|update|check|list|default|remove
+agent-cloudflare profiles discover
 agent-cloudflare config show|path|set|unset
 agent-cloudflare accounts list
 agent-cloudflare zones list|get
@@ -93,6 +94,9 @@ agent-cloudflare ssl status
 agent-cloudflare cache settings
 agent-cloudflare rulesets list
 agent-cloudflare waiting-rooms list|get
+agent-cloudflare workers list|get
+agent-cloudflare kv namespaces list|get
+agent-cloudflare r2 buckets list|get
 agent-cloudflare investigate usage|zone-health
 agent-cloudflare api get
 ```
@@ -100,9 +104,6 @@ agent-cloudflare api get
 Near-term read-only additions:
 
 ```text
-agent-cloudflare workers list|get --account-id <acct>
-agent-cloudflare kv namespaces list --account-id <acct>
-agent-cloudflare r2 buckets list --account-id <acct>
 agent-cloudflare analytics traffic <zone> --since 1h
 agent-cloudflare investigate traffic-spike <zone> --since 1h
 ```

@@ -81,7 +81,7 @@ func (s *Server) handleAccountSubresources(w http.ResponseWriter, r *http.Reques
 	}
 	rest := strings.Trim(strings.TrimPrefix(r.URL.Path, "/accounts/"), "/")
 	parts := strings.Split(rest, "/")
-	if len(parts) != 2 {
+	if len(parts) < 2 {
 		writeEnvelope(w, http.StatusNotFound, nil, []message{{Code: 1003, Message: "route not found"}}, nil)
 		return
 	}
@@ -93,9 +93,79 @@ func (s *Server) handleAccountSubresources(w http.ResponseWriter, r *http.Reques
 	case "waiting_rooms":
 		items := accountWaitingRooms(accountID)
 		writeEnvelope(w, http.StatusOK, items, nil, resultInfo(len(items)))
+	case "workers":
+		if len(parts) >= 3 && parts[2] == "scripts" {
+			s.handleWorkers(w, accountID, parts[3:])
+			return
+		}
+		writeEnvelope(w, http.StatusNotFound, nil, []message{{Code: 1003, Message: "route not found"}}, nil)
+	case "storage":
+		if len(parts) >= 4 && parts[2] == "kv" && parts[3] == "namespaces" {
+			s.handleKVNamespaces(w, accountID, parts[4:])
+			return
+		}
+		writeEnvelope(w, http.StatusNotFound, nil, []message{{Code: 1003, Message: "route not found"}}, nil)
+	case "r2":
+		if len(parts) >= 3 && parts[2] == "buckets" {
+			s.handleR2Buckets(w, accountID, parts[3:])
+			return
+		}
+		writeEnvelope(w, http.StatusNotFound, nil, []message{{Code: 1003, Message: "route not found"}}, nil)
 	default:
 		writeEnvelope(w, http.StatusNotFound, nil, []message{{Code: 1003, Message: "route not found"}}, nil)
 	}
+}
+
+func (s *Server) handleWorkers(w http.ResponseWriter, accountID string, parts []string) {
+	if len(parts) == 0 || parts[0] == "" {
+		items := workers(accountID)
+		writeEnvelope(w, http.StatusOK, items, nil, resultInfo(len(items)))
+		return
+	}
+	scriptName := parts[0]
+	if len(parts) == 2 && parts[1] == "subdomain" {
+		subdomain, ok := workerSubdomain(accountID, scriptName)
+		if !ok {
+			writeEnvelope(w, http.StatusNotFound, nil, []message{{Code: 1004, Message: "worker not found"}}, nil)
+			return
+		}
+		writeEnvelope(w, http.StatusOK, subdomain, nil, nil)
+		return
+	}
+	if len(parts) == 2 && parts[1] == "versions" {
+		items := workerVersions(accountID, scriptName)
+		writeEnvelope(w, http.StatusOK, items, nil, resultInfo(len(items)))
+		return
+	}
+	writeEnvelope(w, http.StatusNotFound, nil, []message{{Code: 1003, Message: "route not found"}}, nil)
+}
+
+func (s *Server) handleKVNamespaces(w http.ResponseWriter, accountID string, parts []string) {
+	if len(parts) == 0 || parts[0] == "" {
+		items := kvNamespaces(accountID)
+		writeEnvelope(w, http.StatusOK, items, nil, resultInfo(len(items)))
+		return
+	}
+	namespace, ok := kvNamespace(accountID, parts[0])
+	if !ok {
+		writeEnvelope(w, http.StatusNotFound, nil, []message{{Code: 1005, Message: "namespace not found"}}, nil)
+		return
+	}
+	writeEnvelope(w, http.StatusOK, namespace, nil, nil)
+}
+
+func (s *Server) handleR2Buckets(w http.ResponseWriter, accountID string, parts []string) {
+	if len(parts) == 0 || parts[0] == "" {
+		items := r2Buckets(accountID)
+		writeEnvelope(w, http.StatusOK, map[string]any{"buckets": items}, nil, nil)
+		return
+	}
+	bucket, ok := r2Bucket(accountID, parts[0])
+	if !ok {
+		writeEnvelope(w, http.StatusNotFound, nil, []message{{Code: 1006, Message: "bucket not found"}}, nil)
+		return
+	}
+	writeEnvelope(w, http.StatusOK, bucket, nil, nil)
 }
 
 func (s *Server) handleZones(w http.ResponseWriter, r *http.Request) {

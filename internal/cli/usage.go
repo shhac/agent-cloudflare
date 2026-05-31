@@ -15,6 +15,7 @@ func registerUsageCommand(root *cobra.Command) {
 
 Setup:
   agent-cloudflare profiles add prod --form --account-id <acct_id>
+  agent-cloudflare profiles discover prod --zone example.com
   agent-cloudflare profiles check prod
   agent-cloudflare profiles list
 
@@ -27,6 +28,9 @@ Read-only exploration:
   agent-cloudflare cache settings example.com
   agent-cloudflare rulesets list example.com
   agent-cloudflare waiting-rooms list example.com
+  agent-cloudflare workers list --account-id <acct_id>
+  agent-cloudflare kv namespaces list --account-id <acct_id>
+  agent-cloudflare r2 buckets list --account-id <acct_id>
   agent-cloudflare investigate zone-health example.com
   agent-cloudflare api get /zones --query name=example.com
 

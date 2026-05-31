@@ -229,6 +229,94 @@ func waitingRoom(zoneID, roomID string) (map[string]any, bool) {
 	return nil, false
 }
 
+func workers(accountID string) []map[string]any {
+	if accountID != "023e105f4ecef8ad9ca31a8372d0c353" {
+		return []map[string]any{}
+	}
+	return []map[string]any{
+		{
+			"id":          "worker_mock_api",
+			"script":      "api-worker",
+			"created_on":  "2026-05-30T10:00:00Z",
+			"modified_on": "2026-05-31T09:00:00Z",
+			"etag":        "mock-etag-api",
+		},
+	}
+}
+
+func workerSubdomain(accountID, scriptName string) (map[string]any, bool) {
+	if accountID != "023e105f4ecef8ad9ca31a8372d0c353" || scriptName != "api-worker" {
+		return nil, false
+	}
+	return map[string]any{
+		"enabled":          true,
+		"previews_enabled": true,
+	}, true
+}
+
+func workerVersions(accountID, scriptName string) []map[string]any {
+	if accountID != "023e105f4ecef8ad9ca31a8372d0c353" || scriptName != "api-worker" {
+		return []map[string]any{}
+	}
+	return []map[string]any{
+		{
+			"id":     "worker_version_2",
+			"number": 2,
+			"metadata": map[string]any{
+				"created_on":  "2026-05-31T09:00:00Z",
+				"modified_on": "2026-05-31T09:00:00Z",
+				"source":      "wrangler",
+			},
+		},
+	}
+}
+
+func kvNamespaces(accountID string) []map[string]any {
+	if accountID != "023e105f4ecef8ad9ca31a8372d0c353" {
+		return []map[string]any{}
+	}
+	return []map[string]any{
+		{
+			"id":                    "kv_mock_sessions",
+			"title":                 "sessions",
+			"supports_url_encoding": true,
+		},
+	}
+}
+
+func kvNamespace(accountID, namespaceID string) (map[string]any, bool) {
+	for _, namespace := range kvNamespaces(accountID) {
+		if namespace["id"] == namespaceID || namespace["title"] == namespaceID {
+			return namespace, true
+		}
+	}
+	return nil, false
+}
+
+func r2Buckets(accountID string) []map[string]any {
+	if accountID != "023e105f4ecef8ad9ca31a8372d0c353" {
+		return []map[string]any{}
+	}
+	return []map[string]any{
+		{
+			"name":          "assets",
+			"creation_date": "2026-05-28T12:00:00Z",
+			"location":      "weur",
+			"jurisdiction":  "default",
+			"storage_class": "Standard",
+		},
+	}
+}
+
+func r2Bucket(accountID, bucketName string) (map[string]any, bool) {
+	for _, bucket := range r2Buckets(accountID) {
+		if bucket["name"] == bucketName {
+			return bucket, true
+		}
+	}
+	return nil, false
+}
+
 func filterByString(items []map[string]any, field, want string) []map[string]any {
 	out := []map[string]any{}
 	for _, item := range items {

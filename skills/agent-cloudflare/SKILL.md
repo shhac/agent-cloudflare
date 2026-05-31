@@ -29,6 +29,7 @@ Use `agent-cloudflare` for Cloudflare operations triage and read-only resource i
 agent-cloudflare usage
 agent-cloudflare profiles list
 agent-cloudflare profiles check
+agent-cloudflare profiles discover <profile> --zone example.com
 agent-cloudflare config show
 agent-cloudflare accounts list
 agent-cloudflare zones list
@@ -44,6 +45,10 @@ agent-cloudflare ssl status example.com
 agent-cloudflare cache settings example.com
 agent-cloudflare rulesets list example.com
 agent-cloudflare waiting-rooms list example.com
+agent-cloudflare workers list --account-id <account_id>
+agent-cloudflare workers get <script_name> --account-id <account_id>
+agent-cloudflare kv namespaces list --account-id <account_id>
+agent-cloudflare r2 buckets list --account-id <account_id>
 agent-cloudflare investigate zone-health example.com
 agent-cloudflare api get /zones --query name=example.com
 agent-cloudflare api get /zones/<zone_id>/dns_records --query type=CNAME

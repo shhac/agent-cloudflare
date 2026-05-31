@@ -14,6 +14,9 @@ Then point the CLI at it:
 agent-cloudflare --base-url http://127.0.0.1:12112 --api-token cfut_mock accounts list
 agent-cloudflare --base-url http://127.0.0.1:12112 --api-token cfut_mock zones list
 agent-cloudflare --base-url http://127.0.0.1:12112 --api-token cfut_mock dns list example.com
+agent-cloudflare --base-url http://127.0.0.1:12112 --api-token cfut_mock --account-id 023e105f4ecef8ad9ca31a8372d0c353 workers list
+agent-cloudflare --base-url http://127.0.0.1:12112 --api-token cfut_mock --account-id 023e105f4ecef8ad9ca31a8372d0c353 kv namespaces list
+agent-cloudflare --base-url http://127.0.0.1:12112 --api-token cfut_mock --account-id 023e105f4ecef8ad9ca31a8372d0c353 r2 buckets list
 agent-cloudflare --base-url http://127.0.0.1:12112 --api-token cfut_mock investigate zone-health example.com
 ```
 
@@ -25,6 +28,13 @@ GET /user/tokens/verify
 GET /accounts
 GET /accounts/{account_id}/rulesets
 GET /accounts/{account_id}/waiting_rooms
+GET /accounts/{account_id}/workers/scripts
+GET /accounts/{account_id}/workers/scripts/{script_name}/subdomain
+GET /accounts/{account_id}/workers/scripts/{script_name}/versions
+GET /accounts/{account_id}/storage/kv/namespaces
+GET /accounts/{account_id}/storage/kv/namespaces/{namespace_id}
+GET /accounts/{account_id}/r2/buckets
+GET /accounts/{account_id}/r2/buckets/{bucket_name}
 GET /zones
 GET /zones/{zone_id}
 GET /zones/{zone_id}/dns_records

@@ -29,6 +29,7 @@ func Register(root *cobra.Command, globals shared.GlobalsFunc) {
 	registerAdd(profiles)
 	registerUpdate(profiles)
 	registerCheck(profiles, globals)
+	registerDiscover(profiles, globals)
 	registerDefault(profiles)
 	registerList(profiles)
 	registerRemove(profiles)
@@ -42,6 +43,7 @@ func Register(root *cobra.Command, globals shared.GlobalsFunc) {
 	registerAdd(authAlias)
 	registerUpdate(authAlias)
 	registerCheck(authAlias, globals)
+	registerDiscover(authAlias, globals)
 	registerDefault(authAlias)
 	registerList(authAlias)
 	registerRemove(authAlias)
@@ -276,6 +278,131 @@ func registerCheck(parent *cobra.Command, globals shared.GlobalsFunc) {
 	parent.AddCommand(cmd)
 }
 
+func registerDiscover(parent *cobra.Command, globals shared.GlobalsFunc) {
+	var zoneName string
+
+	cmd := &cobra.Command{
+		Use:   "discover [profile]",
+		Short: "Discover and store non-secret account and zone defaults",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			flags := globals()
+			if len(args) > 0 {
+				flags.Profile = args[0]
+			}
+			resolved, err := shared.ResolveProfile(flags)
+			if err != nil {
+				output.WriteError(output.Stderr(), err)
+				return nil
+			}
+			if resolved.Alias == "override" {
+				output.WriteError(output.Stderr(), agenterrors.New("profiles discover requires a stored profile", agenterrors.FixableByHuman).
+					WithHint("Run 'agent-cloudflare profiles add <profile> --form' first, then discover metadata for it"))
+				return nil
+			}
+			err = shared.WithResolvedClient(flags, resolved, func(ctx context.Context, client *api.Client) error {
+				accounts, _, err := client.Accounts(ctx, accountListParams(resolved.AccountID))
+				if err != nil {
+					return err
+				}
+				accountID, accountName, accountCandidates := chooseAccount(accounts, resolved.AccountID)
+				zoneParams := url.Values{}
+				if accountID != "" {
+					zoneParams.Set("account.id", accountID)
+				}
+				if zoneName != "" {
+					zoneParams.Set("name", zoneName)
+				}
+				zones, _, err := client.Zones(ctx, zoneParams)
+				if err != nil {
+					return err
+				}
+				defaultZoneID, defaultZoneName, zoneMap := chooseZone(zones, firstNonEmpty(zoneName, resolved.Zone))
+				if err := config.UpdateProfile(resolved.Alias, func(profile config.Profile) config.Profile {
+					if accountID != "" {
+						profile.AccountID = accountID
+					}
+					if accountName != "" {
+						profile.AccountName = accountName
+					}
+					if defaultZoneID != "" {
+						profile.DefaultZoneID = defaultZoneID
+					}
+					if defaultZoneName != "" {
+						profile.DefaultZone = defaultZoneName
+					}
+					if len(zoneMap) > 0 {
+						profile.Zones = zoneMap
+					}
+					return profile
+				}); err != nil {
+					return agenterrors.Wrap(err, agenterrors.FixableByHuman)
+				}
+				shared.WriteItem(map[string]any{
+					"status":             "discovered",
+					"profile":            resolved.Alias,
+					"account_id":         accountID,
+					"account_name":       accountName,
+					"account_candidates": accountCandidates,
+					"default_zone_id":    defaultZoneID,
+					"default_zone":       defaultZoneName,
+					"zones_discovered":   len(zoneMap),
+				}, flags.Format)
+				return nil
+			})
+			if err != nil {
+				output.WriteError(output.Stderr(), err)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&zoneName, "zone", "", "Prefer this exact zone as the default")
+	parent.AddCommand(cmd)
+}
+
+func chooseAccount(items []json.RawMessage, currentAccountID string) (id, name string, candidates int) {
+	if currentAccountID != "" {
+		return currentAccountID, "", len(items)
+	}
+	if len(items) != 1 {
+		return "", "", len(items)
+	}
+	var account struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	_ = json.Unmarshal(items[0], &account)
+	return account.ID, account.Name, len(items)
+}
+
+func chooseZone(items []json.RawMessage, preferredZone string) (id, name string, zoneMap map[string]string) {
+	zoneMap = map[string]string{}
+	type zoneRecord struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	zones := []zoneRecord{}
+	for _, item := range items {
+		var zone zoneRecord
+		if err := json.Unmarshal(item, &zone); err != nil {
+			continue
+		}
+		if zone.ID != "" && zone.Name != "" {
+			zoneMap[zone.Name] = zone.ID
+			zones = append(zones, zone)
+		}
+	}
+	if preferredZone != "" {
+		if zoneID := zoneMap[preferredZone]; zoneID != "" {
+			return zoneID, preferredZone, zoneMap
+		}
+	}
+	if len(zones) == 1 {
+		return zones[0].ID, zones[0].Name, zoneMap
+	}
+	return "", "", zoneMap
+}
+
 func registerDefault(parent *cobra.Command) {
 	cmd := &cobra.Command{
 		Use:   "default <profile>",
@@ -353,4 +480,13 @@ func accountListParams(accountID string) url.Values {
 		params.Set("id", accountID)
 	}
 	return params
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }

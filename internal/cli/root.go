@@ -47,6 +47,9 @@ func newRootCmd(version string) *cobra.Command {
 	registerCache(root, globalsFunc)
 	registerRulesets(root, globalsFunc)
 	registerWaitingRooms(root, globalsFunc)
+	registerWorkers(root, globalsFunc)
+	registerKV(root, globalsFunc)
+	registerR2(root, globalsFunc)
 	registerInvestigate(root, globalsFunc)
 	registerRawAPI(root, globalsFunc)
 

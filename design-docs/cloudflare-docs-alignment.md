@@ -69,6 +69,13 @@ cache settings       GET /zones/{zone_id}/cache/{setting} plus selected zone set
 rulesets list        GET /zones/{zone_id}/rulesets or /accounts/{account_id}/rulesets
 waiting-rooms list   GET /zones/{zone_id}/waiting_rooms or /accounts/{account_id}/waiting_rooms
 waiting-rooms get    GET /zones/{zone_id}/waiting_rooms/{waiting_room_id}
+workers list         GET /accounts/{account_id}/workers/scripts
+workers get          GET /accounts/{account_id}/workers/scripts/{script_name}/subdomain
+                     and /accounts/{account_id}/workers/scripts/{script_name}/versions
+kv namespaces list   GET /accounts/{account_id}/storage/kv/namespaces
+kv namespaces get    GET /accounts/{account_id}/storage/kv/namespaces/{namespace_id}
+r2 buckets list      GET /accounts/{account_id}/r2/buckets
+r2 buckets get       GET /accounts/{account_id}/r2/buckets/{bucket_name}
 investigate zone-health
                      combines zone, DNS, SSL/TLS, cache, rulesets, and Waiting Rooms reads
 api get <path>       GET <path>
