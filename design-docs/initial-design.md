@@ -137,11 +137,12 @@ Current investigations:
 
 ## Mutation policy
 
-The current CLI is read-only. Future mutations should live behind explicit verbs and confirmation or dry-run gates:
+The CLI is read-first. Mutations live behind explicit verbs and confirmation or dry-run gates:
 
 ```text
 agent-cloudflare cache purge <zone> --url ...
 agent-cloudflare dns create <zone> --type CNAME --name app --content ...
+agent-cloudflare dns update <zone> <record-id> --content ...
 agent-cloudflare waiting-rooms update <zone> <room> --enabled true
 ```
 

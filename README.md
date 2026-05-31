@@ -21,6 +21,13 @@ agent-cloudflare investigate traffic-spike example.com --since 1h
 agent-cloudflare snapshot zone example.com
 ```
 
+Mutations require `--dry-run` or `--confirm`:
+
+```bash
+agent-cloudflare cache purge example.com --url https://example.com/a --dry-run
+agent-cloudflare cache purge example.com --url https://example.com/a --confirm --reason "incident mitigation"
+```
+
 `profiles` is the canonical credential command group. `auth` is supported as a hidden compatibility alias.
 
 For local fixture testing:

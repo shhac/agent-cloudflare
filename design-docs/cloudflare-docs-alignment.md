@@ -67,12 +67,16 @@ zones list           GET /zones
 zones get <id>       GET /zones/{zone_id}
 zones get <name>     GET /zones?name=<name>, then GET /zones/{zone_id}
 dns list <zone>      GET /zones/{zone_id}/dns_records
+dns create           POST /zones/{zone_id}/dns_records
+dns update           PATCH /zones/{zone_id}/dns_records/{record_id}
 zone-settings get    GET /zones/{zone_id}/settings/{setting_id}
 ssl status           GET selected /zones/{zone_id}/settings/{setting_id}
 cache settings       GET /zones/{zone_id}/cache/{setting} plus selected zone settings
+cache purge          POST /zones/{zone_id}/purge_cache
 rulesets list        GET /zones/{zone_id}/rulesets or /accounts/{account_id}/rulesets
 waiting-rooms list   GET /zones/{zone_id}/waiting_rooms or /accounts/{account_id}/waiting_rooms
 waiting-rooms get    GET /zones/{zone_id}/waiting_rooms/{waiting_room_id}
+waiting-rooms update PATCH /zones/{zone_id}/waiting_rooms/{waiting_room_id}
 workers list         GET /accounts/{account_id}/workers/scripts
 workers get          GET /accounts/{account_id}/workers/scripts/{script_name}/subdomain
                      and /accounts/{account_id}/workers/scripts/{script_name}/versions

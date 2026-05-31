@@ -202,11 +202,11 @@ func (s *Server) handleZones(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleZoneSubresources(w http.ResponseWriter, r *http.Request) {
-	if !requireGet(w, r) {
-		return
-	}
 	rest := strings.TrimPrefix(r.URL.Path, "/zones/")
 	if strings.Contains(rest, "/settings/") {
+		if !requireGet(w, r) {
+			return
+		}
 		parts := strings.SplitN(rest, "/settings/", 2)
 		setting, ok := zoneSetting(parts[0], strings.Trim(parts[1], "/"))
 		if !ok {
@@ -217,6 +217,9 @@ func (s *Server) handleZoneSubresources(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if strings.Contains(rest, "/cache/") {
+		if !requireGet(w, r) {
+			return
+		}
 		parts := strings.SplitN(rest, "/cache/", 2)
 		setting, ok := cacheSetting(parts[0], strings.Trim(parts[1], "/"))
 		if !ok {
@@ -226,7 +229,27 @@ func (s *Server) handleZoneSubresources(w http.ResponseWriter, r *http.Request) 
 		writeEnvelope(w, http.StatusOK, setting, nil, nil)
 		return
 	}
+	if strings.HasSuffix(rest, "/purge_cache") {
+		if r.Method != http.MethodPost {
+			writeEnvelope(w, http.StatusMethodNotAllowed, nil, []message{{Code: 1001, Message: "method not allowed"}}, nil)
+			return
+		}
+		zoneID := strings.TrimSuffix(rest, "/purge_cache")
+		zoneID = strings.TrimSuffix(zoneID, "/")
+		writeEnvelope(w, http.StatusOK, map[string]any{"id": zoneID, "purged": true}, nil, nil)
+		return
+	}
 	if strings.HasSuffix(rest, "/dns_records") {
+		if r.Method == http.MethodPost {
+			zoneID := strings.TrimSuffix(rest, "/dns_records")
+			zoneID = strings.TrimSuffix(zoneID, "/")
+			record := map[string]any{"id": "dns_mock_created", "zone_id": zoneID}
+			writeEnvelope(w, http.StatusOK, record, nil, nil)
+			return
+		}
+		if !requireGet(w, r) {
+			return
+		}
 		zoneID := strings.TrimSuffix(rest, "/dns_records")
 		zoneID = strings.TrimSuffix(zoneID, "/")
 		records := dnsRecords(zoneID)
@@ -242,7 +265,23 @@ func (s *Server) handleZoneSubresources(w http.ResponseWriter, r *http.Request) 
 		writeEnvelope(w, http.StatusOK, records, nil, resultInfo(len(records)))
 		return
 	}
+	if strings.Contains(rest, "/dns_records/") {
+		if r.Method != http.MethodPatch {
+			writeEnvelope(w, http.StatusMethodNotAllowed, nil, []message{{Code: 1001, Message: "method not allowed"}}, nil)
+			return
+		}
+		parts := strings.SplitN(rest, "/dns_records/", 2)
+		writeEnvelope(w, http.StatusOK, map[string]any{
+			"id":      strings.Trim(parts[1], "/"),
+			"zone_id": strings.Trim(parts[0], "/"),
+			"updated": true,
+		}, nil, nil)
+		return
+	}
 	if strings.HasSuffix(rest, "/rulesets") {
+		if !requireGet(w, r) {
+			return
+		}
 		zoneID := strings.TrimSuffix(rest, "/rulesets")
 		zoneID = strings.TrimSuffix(zoneID, "/")
 		items := zoneRulesets(zoneID)
@@ -251,6 +290,19 @@ func (s *Server) handleZoneSubresources(w http.ResponseWriter, r *http.Request) 
 	}
 	if strings.Contains(rest, "/waiting_rooms/") {
 		parts := strings.SplitN(rest, "/waiting_rooms/", 2)
+		if r.Method == http.MethodPatch {
+			room, ok := waitingRoom(parts[0], strings.Trim(parts[1], "/"))
+			if !ok {
+				writeEnvelope(w, http.StatusNotFound, nil, []message{{Code: 1010, Message: "waiting room not found"}}, nil)
+				return
+			}
+			room["updated"] = true
+			writeEnvelope(w, http.StatusOK, room, nil, nil)
+			return
+		}
+		if !requireGet(w, r) {
+			return
+		}
 		room, ok := waitingRoom(parts[0], strings.Trim(parts[1], "/"))
 		if !ok {
 			writeEnvelope(w, http.StatusNotFound, nil, []message{{Code: 1010, Message: "waiting room not found"}}, nil)
@@ -260,10 +312,16 @@ func (s *Server) handleZoneSubresources(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if strings.HasSuffix(rest, "/waiting_rooms") {
+		if !requireGet(w, r) {
+			return
+		}
 		zoneID := strings.TrimSuffix(rest, "/waiting_rooms")
 		zoneID = strings.TrimSuffix(zoneID, "/")
 		items := zoneWaitingRooms(zoneID)
 		writeEnvelope(w, http.StatusOK, items, nil, resultInfo(len(items)))
+		return
+	}
+	if !requireGet(w, r) {
 		return
 	}
 	zoneID := strings.Trim(rest, "/")

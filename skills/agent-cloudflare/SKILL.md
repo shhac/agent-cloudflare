@@ -21,7 +21,7 @@ Use `agent-cloudflare` for Cloudflare operations triage and read-only resource i
 - Use `agent-cloudflare profiles update <profile> --form` when a stored token needs replacement.
 - Prefer read-only commands.
 - Use `--account-id` and `--zone-id` to scope commands when multiple accounts or zones are visible.
-- Treat mutations such as DNS changes or cache purges as high stakes; this CLI is read-first.
+- Treat mutations such as DNS changes or cache purges as high stakes. Use `--dry-run` first and only use `--confirm` when the user explicitly asks for the write.
 
 ## Start Here
 
@@ -61,6 +61,14 @@ agent-cloudflare investigate cache-miss example.com
 agent-cloudflare snapshot zone example.com
 agent-cloudflare api get /zones --query name=example.com
 agent-cloudflare api get /zones/<zone_id>/dns_records --query type=CNAME
+```
+
+For mutation previews:
+
+```bash
+agent-cloudflare cache purge example.com --url https://example.com/a --dry-run
+agent-cloudflare dns create example.com --type CNAME --name app --content target.example.com --dry-run
+agent-cloudflare waiting-rooms update wr_... example.com --enabled --dry-run
 ```
 
 For local testing, run `mockcloudflare` and set `--base-url http://127.0.0.1:12112` with `--api-token cfut_mock`.

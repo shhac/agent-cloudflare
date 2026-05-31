@@ -19,10 +19,14 @@ func Routes() []string {
 		"GET /zones",
 		"GET /zones/{zone_id}",
 		"GET /zones/{zone_id}/dns_records",
+		"POST /zones/{zone_id}/dns_records",
+		"PATCH /zones/{zone_id}/dns_records/{record_id}",
+		"POST /zones/{zone_id}/purge_cache",
 		"GET /zones/{zone_id}/settings/{setting_id}",
 		"GET /zones/{zone_id}/cache/{setting}",
 		"GET /zones/{zone_id}/rulesets",
 		"GET /zones/{zone_id}/waiting_rooms",
 		"GET /zones/{zone_id}/waiting_rooms/{waiting_room_id}",
+		"PATCH /zones/{zone_id}/waiting_rooms/{waiting_room_id}",
 	}
 }

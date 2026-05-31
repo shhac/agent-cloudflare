@@ -42,11 +42,15 @@ GET /accounts/{account_id}/r2/buckets/{bucket_name}
 GET /zones
 GET /zones/{zone_id}
 GET /zones/{zone_id}/dns_records
+POST /zones/{zone_id}/dns_records
+PATCH /zones/{zone_id}/dns_records/{record_id}
 GET /zones/{zone_id}/settings/{setting_id}
 GET /zones/{zone_id}/cache/{setting}
+POST /zones/{zone_id}/purge_cache
 GET /zones/{zone_id}/rulesets
 GET /zones/{zone_id}/waiting_rooms
 GET /zones/{zone_id}/waiting_rooms/{waiting_room_id}
+PATCH /zones/{zone_id}/waiting_rooms/{waiting_room_id}
 ```
 
 The server requires a non-empty `Authorization: Bearer ...` header for API routes and returns Cloudflare-style v4 envelopes.

@@ -48,6 +48,14 @@ func (c *Client) Get(ctx context.Context, path string, params url.Values) (json.
 	return c.do(ctx, http.MethodGet, buildPath(path, params), nil)
 }
 
+func (c *Client) Post(ctx context.Context, path string, body any) (json.RawMessage, *ResultInfo, error) {
+	return c.do(ctx, http.MethodPost, path, body)
+}
+
+func (c *Client) Patch(ctx context.Context, path string, body any) (json.RawMessage, *ResultInfo, error) {
+	return c.do(ctx, http.MethodPatch, path, body)
+}
+
 func (c *Client) RawRequest(ctx context.Context, method, path string, body json.RawMessage) (json.RawMessage, *ResultInfo, error) {
 	var requestBody any
 	if len(body) > 0 {
@@ -127,6 +135,16 @@ func (c *Client) DNSRecords(ctx context.Context, zoneID string, params url.Value
 	return items, info, err
 }
 
+func (c *Client) CreateDNSRecord(ctx context.Context, zoneID string, body map[string]any) (json.RawMessage, error) {
+	raw, _, err := c.Post(ctx, "/zones/"+url.PathEscape(zoneID)+"/dns_records", body)
+	return raw, err
+}
+
+func (c *Client) UpdateDNSRecord(ctx context.Context, zoneID, recordID string, body map[string]any) (json.RawMessage, error) {
+	raw, _, err := c.Patch(ctx, "/zones/"+url.PathEscape(zoneID)+"/dns_records/"+url.PathEscape(recordID), body)
+	return raw, err
+}
+
 func (c *Client) ZoneSetting(ctx context.Context, zoneID, settingID string) (json.RawMessage, error) {
 	raw, _, err := c.Get(ctx, "/zones/"+url.PathEscape(zoneID)+"/settings/"+url.PathEscape(settingID), nil)
 	return raw, err
@@ -146,6 +164,11 @@ func (c *Client) CacheSetting(ctx context.Context, zoneID, settingPath string) (
 	return raw, err
 }
 
+func (c *Client) PurgeCache(ctx context.Context, zoneID string, body map[string]any) (json.RawMessage, error) {
+	raw, _, err := c.Post(ctx, "/zones/"+url.PathEscape(zoneID)+"/purge_cache", body)
+	return raw, err
+}
+
 func (c *Client) WaitingRooms(ctx context.Context, scope, scopeID string, params url.Values) ([]json.RawMessage, *ResultInfo, error) {
 	raw, info, err := c.Get(ctx, "/"+url.PathEscape(scope)+"/"+url.PathEscape(scopeID)+"/waiting_rooms", params)
 	if err != nil {
@@ -157,6 +180,11 @@ func (c *Client) WaitingRooms(ctx context.Context, scope, scopeID string, params
 
 func (c *Client) WaitingRoom(ctx context.Context, zoneID, roomID string) (json.RawMessage, error) {
 	raw, _, err := c.Get(ctx, "/zones/"+url.PathEscape(zoneID)+"/waiting_rooms/"+url.PathEscape(roomID), nil)
+	return raw, err
+}
+
+func (c *Client) UpdateWaitingRoom(ctx context.Context, zoneID, roomID string, body map[string]any) (json.RawMessage, error) {
+	raw, _, err := c.Patch(ctx, "/zones/"+url.PathEscape(zoneID)+"/waiting_rooms/"+url.PathEscape(roomID), body)
 	return raw, err
 }
 

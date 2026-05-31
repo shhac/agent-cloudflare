@@ -38,6 +38,12 @@ Read-only exploration:
   agent-cloudflare snapshot zone example.com
   agent-cloudflare api get /zones --query name=example.com
 
+Explicit mutations:
+  agent-cloudflare cache purge example.com --url https://example.com/a --dry-run
+  agent-cloudflare cache purge example.com --url https://example.com/a --confirm --reason "incident mitigation"
+  agent-cloudflare dns create example.com --type CNAME --name app --content target.example.com --dry-run
+  agent-cloudflare waiting-rooms update wr_... example.com --enabled --dry-run
+
 Output:
   Lists default to NDJSON/jsonl.
   Single resources default to JSON.

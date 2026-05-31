@@ -260,3 +260,41 @@ func TestSnapshotAndBaselineCommands(t *testing.T) {
 		t.Fatalf("stdout = %s, want zone diff", diff.stdout)
 	}
 }
+
+func TestMutationCommandsRequireDryRunOrConfirm(t *testing.T) {
+	baseURL := withMockServer(t)
+	result := runCommand(t, "--base-url", baseURL, "--api-token", "cfut_mock", "cache", "purge", "example.com", "--url", "https://example.com/a")
+	if result.err == nil {
+		t.Fatalf("expected command error without dry-run or confirm")
+	}
+}
+
+func TestMutationDryRunAndConfirm(t *testing.T) {
+	baseURL := withMockServer(t)
+	baseArgs := []string{"--base-url", baseURL, "--api-token", "cfut_mock"}
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "cache purge dry-run", args: []string{"cache", "purge", "example.com", "--url", "https://example.com/a", "--dry-run"}, want: "dry_run"},
+		{name: "cache purge confirm", args: []string{"cache", "purge", "example.com", "--url", "https://example.com/a", "--confirm"}, want: "cache.purge"},
+		{name: "dns create dry-run", args: []string{"dns", "create", "example.com", "--type", "CNAME", "--name", "app", "--content", "target.example.com", "--dry-run"}, want: "dry_run"},
+		{name: "dns create confirm", args: []string{"dns", "create", "example.com", "--type", "A", "--name", "new.example.com", "--content", "203.0.113.20", "--confirm"}, want: "dns.create"},
+		{name: "dns update confirm", args: []string{"dns", "update", "dns_mock_a", "example.com", "--content", "203.0.113.30", "--confirm"}, want: "dns.update"},
+		{name: "waiting room update dry-run", args: []string{"waiting-rooms", "update", "wr_mock_sale", "example.com", "--enabled", "--dry-run"}, want: "dry_run"},
+		{name: "waiting room update confirm", args: []string{"waiting-rooms", "update", "wr_mock_sale", "example.com", "--enabled", "--confirm"}, want: "waiting_room.update"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append(append([]string{}, baseArgs...), tt.args...)
+			result := runCommand(t, args...)
+			if result.err != nil || result.stderr != "" {
+				t.Fatalf("command err=%v stderr=%s stdout=%s", result.err, result.stderr, result.stdout)
+			}
+			if !strings.Contains(result.stdout, tt.want) {
+				t.Fatalf("stdout = %s, want %s", result.stdout, tt.want)
+			}
+		})
+	}
+}
