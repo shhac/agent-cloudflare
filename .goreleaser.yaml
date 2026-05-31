@@ -1,0 +1,58 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: agent-cloudflare
+    main: ./cmd/agent-cloudflare
+    binary: agent-cloudflare
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+  - id: mockcloudflare
+    main: ./cmd/mockcloudflare
+    binary: mockcloudflare
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: agent-cloudflare
+    builds:
+      - agent-cloudflare
+    name_template: "agent-cloudflare_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - id: mockcloudflare
+    builds:
+      - mockcloudflare
+    name_template: "mockcloudflare_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums-sha256.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  disable: false

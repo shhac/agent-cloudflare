@@ -85,3 +85,9 @@ Investigation output uses evidence records:
 ```
 
 Profile/config metadata lives in XDG config. API tokens live in Keychain. `profiles list` and `profiles check` may show non-secret credential type (`cfut`, `legacy_api_token`, or `unknown`) but never the token.
+
+## Incremental References
+
+Load these only when useful:
+
+- [references/scenarios.md](references/scenarios.md): common incident questions and recommended command sequences.
