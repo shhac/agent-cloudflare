@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -71,9 +70,17 @@ func applyConfiguredDefaults(cmd *cobra.Command, globals *shared.GlobalFlags) {
 }
 
 func Execute(version string) error {
-	err := newRootCmd(version).Execute()
+	return ExecuteArgs(version, nil)
+}
+
+func ExecuteArgs(version string, args []string) error {
+	cmd := newRootCmd(version)
+	if args != nil {
+		cmd.SetArgs(args)
+	}
+	err := cmd.Execute()
 	if err != nil {
-		_, _ = fmt.Fprintln(output.Stderr(), err)
+		output.WriteError(output.Stderr(), err)
 	}
 	return err
 }

@@ -55,6 +55,16 @@ func runCommand(t *testing.T, args ...string) commandResult {
 	return commandResult{stdout: stdout.String(), stderr: stderr.String(), err: err}
 }
 
+func runExecute(t *testing.T, args ...string) commandResult {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	restoreWriters := output.SetWriters(&stdout, &stderr)
+	t.Cleanup(restoreWriters)
+
+	err := ExecuteArgs("test", args)
+	return commandResult{stdout: stdout.String(), stderr: stderr.String(), err: err}
+}
+
 func withMockServer(t *testing.T) string {
 	t.Helper()
 	server := httptest.NewServer(mockcloudflare.NewServer())
@@ -263,9 +273,16 @@ func TestSnapshotAndBaselineCommands(t *testing.T) {
 
 func TestMutationCommandsRequireDryRunOrConfirm(t *testing.T) {
 	baseURL := withMockServer(t)
-	result := runCommand(t, "--base-url", baseURL, "--api-token", "cfut_mock", "cache", "purge", "example.com", "--url", "https://example.com/a")
+	result := runExecute(t, "--base-url", baseURL, "--api-token", "cfut_mock", "cache", "purge", "example.com", "--url", "https://example.com/a")
 	if result.err == nil {
 		t.Fatalf("expected command error without dry-run or confirm")
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(result.stderr), &payload); err != nil {
+		t.Fatalf("stderr is not JSON: %s", result.stderr)
+	}
+	if payload["fixable_by"] != "agent" || payload["hint"] == "" {
+		t.Fatalf("payload = %#v, want agent error with hint", payload)
 	}
 }
 
