@@ -50,7 +50,11 @@ func newRootCmd(version string) *cobra.Command {
 	registerWorkers(root, globalsFunc)
 	registerKV(root, globalsFunc)
 	registerR2(root, globalsFunc)
+	registerAudit(root, globalsFunc)
+	registerAnalytics(root, globalsFunc)
 	registerInvestigate(root, globalsFunc)
+	registerSnapshot(root, globalsFunc)
+	registerBaseline(root, globalsFunc)
 	registerRawAPI(root, globalsFunc)
 
 	return root

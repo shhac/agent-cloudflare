@@ -3,8 +3,10 @@ package mockcloudflare
 func Routes() []string {
 	return []string{
 		"GET /healthz",
+		"POST /graphql",
 		"GET /user/tokens/verify",
 		"GET /accounts",
+		"GET /accounts/{account_id}/logs/audit",
 		"GET /accounts/{account_id}/rulesets",
 		"GET /accounts/{account_id}/waiting_rooms",
 		"GET /accounts/{account_id}/workers/scripts",

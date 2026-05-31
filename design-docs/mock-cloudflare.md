@@ -17,6 +17,8 @@ agent-cloudflare --base-url http://127.0.0.1:12112 --api-token cfut_mock dns lis
 agent-cloudflare --base-url http://127.0.0.1:12112 --api-token cfut_mock --account-id 023e105f4ecef8ad9ca31a8372d0c353 workers list
 agent-cloudflare --base-url http://127.0.0.1:12112 --api-token cfut_mock --account-id 023e105f4ecef8ad9ca31a8372d0c353 kv namespaces list
 agent-cloudflare --base-url http://127.0.0.1:12112 --api-token cfut_mock --account-id 023e105f4ecef8ad9ca31a8372d0c353 r2 buckets list
+agent-cloudflare --base-url http://127.0.0.1:12112 --api-token cfut_mock --account-id 023e105f4ecef8ad9ca31a8372d0c353 audit list
+agent-cloudflare --base-url http://127.0.0.1:12112 --api-token cfut_mock analytics traffic example.com
 agent-cloudflare --base-url http://127.0.0.1:12112 --api-token cfut_mock investigate zone-health example.com
 ```
 
@@ -24,8 +26,10 @@ Implemented routes:
 
 ```text
 GET /healthz
+POST /graphql
 GET /user/tokens/verify
 GET /accounts
+GET /accounts/{account_id}/logs/audit
 GET /accounts/{account_id}/rulesets
 GET /accounts/{account_id}/waiting_rooms
 GET /accounts/{account_id}/workers/scripts

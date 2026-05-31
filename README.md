@@ -17,6 +17,8 @@ agent-cloudflare workers list
 agent-cloudflare kv namespaces list
 agent-cloudflare r2 buckets list
 agent-cloudflare investigate zone-health example.com
+agent-cloudflare investigate traffic-spike example.com --since 1h
+agent-cloudflare snapshot zone example.com
 ```
 
 `profiles` is the canonical credential command group. `auth` is supported as a hidden compatibility alias.

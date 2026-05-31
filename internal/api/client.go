@@ -56,6 +56,21 @@ func (c *Client) RawRequest(ctx context.Context, method, path string, body json.
 	return c.do(ctx, method, path, requestBody)
 }
 
+func (c *Client) GraphQL(ctx context.Context, query string, variables map[string]any) (json.RawMessage, error) {
+	body := map[string]any{
+		"query":     query,
+		"variables": variables,
+	}
+	resp, err := c.sendRaw(ctx, http.MethodPost, "/graphql", body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.status >= 400 {
+		return nil, classifyHTTPError(resp.status, resp.body)
+	}
+	return json.RawMessage(resp.body), nil
+}
+
 type RequestPreview struct {
 	Method  string            `json:"method"`
 	URL     string            `json:"url"`
@@ -196,20 +211,49 @@ func (c *Client) R2Bucket(ctx context.Context, accountID, bucketName string) (js
 	return raw, err
 }
 
-func (c *Client) do(ctx context.Context, method, path string, body any) (json.RawMessage, *ResultInfo, error) {
-	req, err := c.buildRequest(ctx, method, path, body)
+func (c *Client) AuditLogs(ctx context.Context, accountID string, params url.Values) ([]json.RawMessage, *ResultInfo, error) {
+	raw, info, err := c.Get(ctx, "/accounts/"+url.PathEscape(accountID)+"/logs/audit", params)
 	if err != nil {
 		return nil, nil, err
 	}
+	items, err := DecodeResultList(raw)
+	return items, info, err
+}
+
+func (c *Client) do(ctx context.Context, method, path string, body any) (json.RawMessage, *ResultInfo, error) {
+	resp, err := c.sendRaw(ctx, method, path, body)
+	if err != nil {
+		return nil, nil, err
+	}
+	if resp.status >= 400 {
+		return nil, nil, classifyHTTPError(resp.status, resp.body)
+	}
+	result, info, err := DecodeEnvelope(resp.body)
+	if err != nil {
+		return nil, nil, err
+	}
+	return result, info, nil
+}
+
+type rawResponse struct {
+	status int
+	body   []byte
+}
+
+func (c *Client) sendRaw(ctx context.Context, method, path string, body any) (*rawResponse, error) {
+	req, err := c.buildRequest(ctx, method, path, body)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, nil, agenterrors.Wrap(err, agenterrors.FixableByRetry).WithHint("Network error: check connectivity and retry")
+		return nil, agenterrors.Wrap(err, agenterrors.FixableByRetry).WithHint("Network error: check connectivity and retry")
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, nil, agenterrors.Wrap(err, agenterrors.FixableByRetry)
+		return nil, agenterrors.Wrap(err, agenterrors.FixableByRetry)
 	}
 	if c.debug {
 		w := output.NewNDJSONWriter(output.Stderr())
@@ -219,14 +263,7 @@ func (c *Client) do(ctx context.Context, method, path string, body any) (json.Ra
 			"status": resp.StatusCode,
 		})
 	}
-	if resp.StatusCode >= 400 {
-		return nil, nil, classifyHTTPError(resp.StatusCode, respBody)
-	}
-	result, info, err := DecodeEnvelope(respBody)
-	if err != nil {
-		return nil, nil, err
-	}
-	return result, info, nil
+	return &rawResponse{status: resp.StatusCode, body: respBody}, nil
 }
 
 func (c *Client) buildRequest(ctx context.Context, method, path string, body any) (*http.Request, error) {

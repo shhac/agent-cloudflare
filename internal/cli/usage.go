@@ -31,7 +31,11 @@ Read-only exploration:
   agent-cloudflare workers list --account-id <acct_id>
   agent-cloudflare kv namespaces list --account-id <acct_id>
   agent-cloudflare r2 buckets list --account-id <acct_id>
+  agent-cloudflare audit list --account-id <acct_id>
+  agent-cloudflare analytics traffic example.com --since 1h
   agent-cloudflare investigate zone-health example.com
+  agent-cloudflare investigate traffic-spike example.com --since 1h
+  agent-cloudflare snapshot zone example.com
   agent-cloudflare api get /zones --query name=example.com
 
 Output:

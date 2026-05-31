@@ -14,6 +14,8 @@ Docs checked on 2026-05-31:
 - Workers API: `https://developers.cloudflare.com/api/resources/workers/`
 - KV API: `https://developers.cloudflare.com/api/resources/kv/`
 - R2 API: `https://developers.cloudflare.com/api/resources/r2/`
+- Audit Logs API: `https://developers.cloudflare.com/api/resources/accounts/subresources/logs/subresources/audit/`
+- GraphQL Analytics API: `https://developers.cloudflare.com/analytics/graphql-api/`
 
 ## API shape
 
@@ -24,6 +26,8 @@ https://api.cloudflare.com/client/v4
 ```
 
 Most endpoints return an envelope with `success`, `result`, `errors`, `messages`, and often `result_info`. `agent-cloudflare` unwraps `result` for ordinary command output and converts `result_info` into an NDJSON `@pagination` row.
+
+GraphQL Analytics is the exception: `POST /graphql` returns a GraphQL response with `data` and `errors`, not the v4 REST envelope. The API client has a separate GraphQL path for analytics commands.
 
 ## Authentication
 
@@ -76,8 +80,12 @@ kv namespaces list   GET /accounts/{account_id}/storage/kv/namespaces
 kv namespaces get    GET /accounts/{account_id}/storage/kv/namespaces/{namespace_id}
 r2 buckets list      GET /accounts/{account_id}/r2/buckets
 r2 buckets get       GET /accounts/{account_id}/r2/buckets/{bucket_name}
+audit list           GET /accounts/{account_id}/logs/audit
+analytics traffic    POST /graphql with httpRequestsAdaptiveGroups
 investigate zone-health
                      combines zone, DNS, SSL/TLS, cache, rulesets, and Waiting Rooms reads
+investigate traffic-spike
+                     combines GraphQL traffic analytics and audit context
 api get <path>       GET <path>
 ```
 

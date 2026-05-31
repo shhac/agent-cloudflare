@@ -49,7 +49,16 @@ agent-cloudflare workers list --account-id <account_id>
 agent-cloudflare workers get <script_name> --account-id <account_id>
 agent-cloudflare kv namespaces list --account-id <account_id>
 agent-cloudflare r2 buckets list --account-id <account_id>
+agent-cloudflare audit list --account-id <account_id>
+agent-cloudflare analytics traffic example.com --since 1h
 agent-cloudflare investigate zone-health example.com
+agent-cloudflare investigate traffic-spike example.com --since 1h
+agent-cloudflare investigate dns-change example.com
+agent-cloudflare investigate ssl-breakage example.com
+agent-cloudflare investigate waf-block example.com
+agent-cloudflare investigate worker-error --account-id <account_id>
+agent-cloudflare investigate cache-miss example.com
+agent-cloudflare snapshot zone example.com
 agent-cloudflare api get /zones --query name=example.com
 agent-cloudflare api get /zones/<zone_id>/dns_records --query type=CNAME
 ```

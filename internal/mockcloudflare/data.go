@@ -317,6 +317,78 @@ func r2Bucket(accountID, bucketName string) (map[string]any, bool) {
 	return nil, false
 }
 
+func auditLogs(accountID string) []map[string]any {
+	if accountID != "023e105f4ecef8ad9ca31a8372d0c353" {
+		return []map[string]any{}
+	}
+	return []map[string]any{
+		{
+			"id": "audit_dns_update",
+			"account": map[string]any{
+				"id":   accountID,
+				"name": "Mock Production",
+			},
+			"action": map[string]any{
+				"type":        "rec_edit",
+				"description": "DNS record edited",
+				"result":      "success",
+				"time":        "2026-05-31T08:45:00Z",
+			},
+			"actor": map[string]any{
+				"email": "ops@example.com",
+				"type":  "user",
+			},
+			"resource": map[string]any{
+				"id":      "dns_mock_a",
+				"type":    "dns_record",
+				"product": "dns",
+			},
+		},
+	}
+}
+
+func graphQLTrafficResponse() map[string]any {
+	return map[string]any{
+		"data": map[string]any{
+			"viewer": map[string]any{
+				"zones": []map[string]any{
+					{
+						"series": []map[string]any{
+							{
+								"dimensions": map[string]any{
+									"datetimeHour":          "2026-05-31T10:00:00Z",
+									"edgeResponseStatus":    200,
+									"cacheStatus":           "hit",
+									"clientRequestHTTPHost": "example.com",
+								},
+								"count": 1200,
+								"sum": map[string]any{
+									"edgeResponseBytes": 7200000,
+									"visits":            800,
+								},
+							},
+							{
+								"dimensions": map[string]any{
+									"datetimeHour":          "2026-05-31T10:00:00Z",
+									"edgeResponseStatus":    500,
+									"cacheStatus":           "miss",
+									"clientRequestHTTPHost": "example.com",
+								},
+								"count": 65,
+								"sum": map[string]any{
+									"edgeResponseBytes": 140000,
+									"visits":            50,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"errors": nil,
+	}
+}
+
 func filterByString(items []map[string]any, field, want string) []map[string]any {
 	out := []map[string]any{}
 	for _, item := range items {

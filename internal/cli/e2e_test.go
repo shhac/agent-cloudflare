@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -197,5 +199,64 @@ func TestZoneHealthInvestigationEmitsEvidence(t *testing.T) {
 		if !strings.Contains(result.stdout, want) {
 			t.Fatalf("stdout missing %s:\n%s", want, result.stdout)
 		}
+	}
+}
+
+func TestAnalyticsAuditAndIncidentCommands(t *testing.T) {
+	baseURL := withMockServer(t)
+	baseArgs := []string{"--base-url", baseURL, "--api-token", "cfut_mock", "--account-id", "023e105f4ecef8ad9ca31a8372d0c353"}
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "analytics traffic", args: []string{"analytics", "traffic", "example.com"}, want: "example.com"},
+		{name: "audit list", args: []string{"audit", "list"}, want: "audit_dns_update"},
+		{name: "traffic spike", args: []string{"investigate", "traffic-spike", "example.com"}, want: "traffic_analytics"},
+		{name: "dns change", args: []string{"investigate", "dns-change", "example.com"}, want: "audit_logs"},
+		{name: "ssl breakage", args: []string{"investigate", "ssl-breakage", "example.com"}, want: "ssl_settings"},
+		{name: "waf block", args: []string{"investigate", "waf-block", "example.com"}, want: "rulesets_summary"},
+		{name: "worker error", args: []string{"investigate", "worker-error"}, want: "workers_summary"},
+		{name: "cache miss", args: []string{"investigate", "cache-miss", "example.com"}, want: "cache_settings"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append(append([]string{}, baseArgs...), tt.args...)
+			result := runCommand(t, args...)
+			if result.err != nil || result.stderr != "" {
+				t.Fatalf("command err=%v stderr=%s stdout=%s", result.err, result.stderr, result.stdout)
+			}
+			if !strings.Contains(result.stdout, tt.want) {
+				t.Fatalf("stdout = %s, want %s", result.stdout, tt.want)
+			}
+		})
+	}
+}
+
+func TestSnapshotAndBaselineCommands(t *testing.T) {
+	baseURL := withMockServer(t)
+	result := runCommand(t, "--base-url", baseURL, "--api-token", "cfut_mock", "snapshot", "zone", "example.com")
+	if result.err != nil || result.stderr != "" {
+		t.Fatalf("snapshot zone err=%v stderr=%s stdout=%s", result.err, result.stderr, result.stdout)
+	}
+	if !strings.Contains(result.stdout, `"schema": "agent-cloudflare.zone-snapshot.v1"`) {
+		t.Fatalf("stdout = %s, want snapshot schema", result.stdout)
+	}
+
+	dir := t.TempDir()
+	before := filepath.Join(dir, "before.json")
+	after := filepath.Join(dir, "after.json")
+	if err := os.WriteFile(before, []byte(`{"schema":"agent-cloudflare.zone-snapshot.v1","zone":{"name":"example.com"}}`), 0o644); err != nil {
+		t.Fatalf("WriteFile(before) error = %v", err)
+	}
+	if err := os.WriteFile(after, []byte(`{"schema":"agent-cloudflare.zone-snapshot.v1","zone":{"name":"example.net"}}`), 0o644); err != nil {
+		t.Fatalf("WriteFile(after) error = %v", err)
+	}
+	diff := runCommand(t, "snapshot", "diff", before, after)
+	if diff.err != nil || diff.stderr != "" {
+		t.Fatalf("snapshot diff err=%v stderr=%s stdout=%s", diff.err, diff.stderr, diff.stdout)
+	}
+	if !strings.Contains(diff.stdout, `"path": "zone"`) {
+		t.Fatalf("stdout = %s, want zone diff", diff.stdout)
 	}
 }

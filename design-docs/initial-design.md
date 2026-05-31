@@ -97,16 +97,43 @@ agent-cloudflare waiting-rooms list|get
 agent-cloudflare workers list|get
 agent-cloudflare kv namespaces list|get
 agent-cloudflare r2 buckets list|get
-agent-cloudflare investigate usage|zone-health
+agent-cloudflare audit list
+agent-cloudflare analytics traffic
+agent-cloudflare investigate usage|zone-health|traffic-spike|dns-change|ssl-breakage|waf-block|worker-error|cache-miss
+agent-cloudflare snapshot zone|diff
+agent-cloudflare baseline check
 agent-cloudflare api get
 ```
 
 Near-term read-only additions:
 
 ```text
-agent-cloudflare analytics traffic <zone> --since 1h
-agent-cloudflare investigate traffic-spike <zone> --since 1h
+agent-cloudflare analytics graphql-query --file query.graphql
+agent-cloudflare investigate worker-error <script-name>
 ```
+
+## Investigation model
+
+Investigation commands emit NDJSON evidence records:
+
+```json
+{"type":"entity","object":"traffic_analytics","id":"...","data":{}}
+{"type":"finding","severity":"warning","summary":"...","data":{}}
+```
+
+Current investigations:
+
+- `zone-health`: zone, DNS, SSL/TLS, cache, rulesets, and Waiting Room posture
+- `traffic-spike`: GraphQL traffic analytics plus audit context
+- `dns-change`: DNS summary plus audit context
+- `ssl-breakage`: SSL/TLS setting evidence and warnings
+- `waf-block`: rulesets summary
+- `worker-error`: account Worker inventory evidence
+- `cache-miss`: cache API and zone settings
+
+## Snapshot model
+
+`snapshot zone` captures repeatable JSON state for a zone. `snapshot diff` compares two files at top-level snapshot paths. `baseline check` compares current state with a saved snapshot and returns `ok` or `drift`.
 
 ## Mutation policy
 

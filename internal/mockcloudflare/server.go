@@ -32,6 +32,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) routes() {
 	s.mux.HandleFunc("/", s.handleIndex)
 	s.mux.HandleFunc("/healthz", s.handleHealthz)
+	s.mux.HandleFunc("/graphql", s.handleGraphQL)
 	s.mux.HandleFunc("/user/tokens/verify", s.handleVerifyToken)
 	s.mux.HandleFunc("/accounts", s.handleAccounts)
 	s.mux.HandleFunc("/accounts/", s.handleAccountSubresources)
@@ -87,6 +88,13 @@ func (s *Server) handleAccountSubresources(w http.ResponseWriter, r *http.Reques
 	}
 	accountID := parts[0]
 	switch parts[1] {
+	case "logs":
+		if len(parts) >= 3 && parts[2] == "audit" {
+			items := auditLogs(accountID)
+			writeEnvelope(w, http.StatusOK, items, nil, resultInfo(len(items)))
+			return
+		}
+		writeEnvelope(w, http.StatusNotFound, nil, []message{{Code: 1003, Message: "route not found"}}, nil)
 	case "rulesets":
 		items := accountRulesets(accountID)
 		writeEnvelope(w, http.StatusOK, items, nil, resultInfo(len(items)))
@@ -114,6 +122,14 @@ func (s *Server) handleAccountSubresources(w http.ResponseWriter, r *http.Reques
 	default:
 		writeEnvelope(w, http.StatusNotFound, nil, []message{{Code: 1003, Message: "route not found"}}, nil)
 	}
+}
+
+func (s *Server) handleGraphQL(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"errors": []map[string]any{{"message": "method not allowed"}}})
+		return
+	}
+	writeJSON(w, http.StatusOK, graphQLTrafficResponse())
 }
 
 func (s *Server) handleWorkers(w http.ResponseWriter, accountID string, parts []string) {

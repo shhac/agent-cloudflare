@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -23,6 +24,8 @@ type evidenceRecord struct {
 }
 
 func registerInvestigate(root *cobra.Command, globals shared.GlobalsFunc) {
+	var since string
+
 	investigate := &cobra.Command{
 		Use:   "investigate",
 		Short: "Gather Cloudflare evidence for common operational questions",
@@ -35,6 +38,12 @@ func registerInvestigate(root *cobra.Command, globals shared.GlobalsFunc) {
 
 Available investigations:
   agent-cloudflare investigate zone-health <zone-name-or-id>
+  agent-cloudflare investigate traffic-spike <zone-name-or-id> --since 1h
+  agent-cloudflare investigate dns-change <zone-name-or-id>
+  agent-cloudflare investigate ssl-breakage <zone-name-or-id>
+  agent-cloudflare investigate waf-block <zone-name-or-id>
+  agent-cloudflare investigate worker-error --account-id <account_id>
+  agent-cloudflare investigate cache-miss <zone-name-or-id>
 
 Output:
   Investigation records default to NDJSON evidence rows.
@@ -65,7 +74,99 @@ Output:
 		},
 	}
 	investigate.AddCommand(zoneHealth)
+
+	trafficSpike := &cobra.Command{
+		Use:   "traffic-spike [zone-name-or-id]",
+		Short: "Gather analytics and audit evidence for a traffic spike",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runZoneInvestigation(globals(), args, func(ctx context.Context, client *api.Client, resolved *shared.ResolvedProfile, zoneID string) ([]evidenceRecord, error) {
+				start, end, err := sinceWindow(since, time.Now())
+				if err != nil {
+					return nil, err
+				}
+				return investigateTrafficSpike(ctx, client, resolved, zoneID, start, end)
+			})
+		},
+	}
+	trafficSpike.Flags().StringVar(&since, "since", "1h", "Lookback duration, such as 15m, 1h, or 24h")
+
+	investigate.AddCommand(trafficSpike)
+	investigate.AddCommand(zoneInvestigationCommand("dns-change", "Gather DNS and audit evidence for recent DNS changes", globals, func(ctx context.Context, client *api.Client, resolved *shared.ResolvedProfile, zoneID string) ([]evidenceRecord, error) {
+		return investigateDNSChange(ctx, client, resolved, zoneID), nil
+	}))
+	investigate.AddCommand(zoneInvestigationCommand("ssl-breakage", "Gather SSL/TLS evidence for certificate or HTTPS issues", globals, func(ctx context.Context, client *api.Client, resolved *shared.ResolvedProfile, zoneID string) ([]evidenceRecord, error) {
+		settings, findings := collectSettingsSoft(ctx, client, zoneID, sslSettingIDs)
+		records := []evidenceRecord{{Type: "entity", Object: "ssl_settings", ID: zoneID, Data: settings}}
+		records = append(records, findings...)
+		records = append(records, sslFindings(settings)...)
+		return records, nil
+	}))
+	investigate.AddCommand(zoneInvestigationCommand("waf-block", "Gather rulesets and traffic evidence for suspected WAF blocks", globals, func(ctx context.Context, client *api.Client, resolved *shared.ResolvedProfile, zoneID string) ([]evidenceRecord, error) {
+		return investigateWAFBlock(ctx, client, zoneID), nil
+	}))
+	investigate.AddCommand(zoneInvestigationCommand("cache-miss", "Gather cache settings and traffic evidence for cache misses", globals, func(ctx context.Context, client *api.Client, resolved *shared.ResolvedProfile, zoneID string) ([]evidenceRecord, error) {
+		return investigateCacheMiss(ctx, client, zoneID), nil
+	}))
+	investigate.AddCommand(accountInvestigationCommand("worker-error", "Gather Workers evidence for account-level Worker errors", globals, func(ctx context.Context, client *api.Client, resolved *shared.ResolvedProfile, accountID string) ([]evidenceRecord, error) {
+		return investigateWorkerError(ctx, client, accountID), nil
+	}))
 	root.AddCommand(investigate)
+}
+
+type zoneInvestigationFunc func(context.Context, *api.Client, *shared.ResolvedProfile, string) ([]evidenceRecord, error)
+type accountInvestigationFunc func(context.Context, *api.Client, *shared.ResolvedProfile, string) ([]evidenceRecord, error)
+
+func zoneInvestigationCommand(use, short string, globals shared.GlobalsFunc, fn zoneInvestigationFunc) *cobra.Command {
+	return &cobra.Command{
+		Use:   use + " [zone-name-or-id]",
+		Short: short,
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runZoneInvestigation(globals(), args, fn)
+		},
+	}
+}
+
+func accountInvestigationCommand(use, short string, globals shared.GlobalsFunc, fn accountInvestigationFunc) *cobra.Command {
+	return &cobra.Command{
+		Use:   use,
+		Short: short,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			flags := globals()
+			return shared.WithClient(flags, func(ctx context.Context, client *api.Client, resolved *shared.ResolvedProfile) error {
+				accountID, err := requireAccountID(resolved)
+				if err != nil {
+					return err
+				}
+				records, err := fn(ctx, client, resolved, accountID)
+				if err != nil {
+					return err
+				}
+				writeEvidence(records, flags.Format)
+				return nil
+			})
+		},
+	}
+}
+
+func runZoneInvestigation(flags *shared.GlobalFlags, args []string, fn zoneInvestigationFunc) error {
+	return shared.WithClient(flags, func(ctx context.Context, client *api.Client, resolved *shared.ResolvedProfile) error {
+		zoneRef := resolved.ZoneID
+		if len(args) > 0 {
+			zoneRef = args[0]
+		}
+		zoneID, err := resolveZoneID(ctx, client, resolved, zoneRef)
+		if err != nil {
+			return err
+		}
+		records, err := fn(ctx, client, resolved, zoneID)
+		if err != nil {
+			return err
+		}
+		writeEvidence(records, flags.Format)
+		return nil
+	})
 }
 
 func investigateZoneHealth(ctx context.Context, client *api.Client, zoneID string) []evidenceRecord {
@@ -151,6 +252,135 @@ func investigateZoneHealth(ctx context.Context, client *api.Client, zoneID strin
 		Data:     map[string]any{"zone_id": zoneID},
 	})
 	return records
+}
+
+func investigateTrafficSpike(ctx context.Context, client *api.Client, resolved *shared.ResolvedProfile, zoneID string, start, end time.Time) ([]evidenceRecord, error) {
+	raw, err := client.GraphQL(ctx, trafficQuery, map[string]any{
+		"zoneTag": zoneID,
+		"start":   start.Format(time.RFC3339),
+		"end":     end.Format(time.RFC3339),
+		"limit":   200,
+	})
+	if err != nil {
+		return nil, err
+	}
+	decoded, err := decodeRaw(raw)
+	if err != nil {
+		return nil, err
+	}
+	records := []evidenceRecord{
+		{Type: "entity", Object: "traffic_analytics", ID: zoneID, Data: decoded},
+	}
+	records = append(records, trafficFindings(decoded)...)
+	if resolved.AccountID != "" {
+		auditRecords := auditEvidence(ctx, client, resolved.AccountID)
+		records = append(records, auditRecords...)
+	}
+	return records, nil
+}
+
+func investigateDNSChange(ctx context.Context, client *api.Client, resolved *shared.ResolvedProfile, zoneID string) []evidenceRecord {
+	records := []evidenceRecord{}
+	dnsItems, _, err := client.DNSRecords(ctx, zoneID, nil)
+	if err != nil {
+		records = append(records, errorFinding("dns_records", "warning", "Could not retrieve DNS records", err))
+	} else if decoded, err := shared.RawItemsToAny(dnsItems); err == nil {
+		records = append(records, evidenceRecord{Type: "entity", Object: "dns_records_summary", ID: zoneID, Data: dnsSummary(decoded)})
+	}
+	if resolved.AccountID != "" {
+		records = append(records, auditEvidence(ctx, client, resolved.AccountID)...)
+	}
+	return records
+}
+
+func investigateWAFBlock(ctx context.Context, client *api.Client, zoneID string) []evidenceRecord {
+	records := []evidenceRecord{}
+	rulesets, _, err := client.Rulesets(ctx, "zones", zoneID, nil)
+	if err != nil {
+		return append(records, errorFinding("rulesets", "warning", "Could not retrieve WAF/rulesets", err))
+	}
+	decoded, err := shared.RawItemsToAny(rulesets)
+	if err != nil {
+		return append(records, errorFinding("rulesets", "warning", "Could not decode WAF/rulesets", err))
+	}
+	records = append(records, evidenceRecord{Type: "entity", Object: "rulesets_summary", ID: zoneID, Data: rulesetsSummary(decoded)})
+	return records
+}
+
+func investigateCacheMiss(ctx context.Context, client *api.Client, zoneID string) []evidenceRecord {
+	apiSettings, apiFindings := collectCacheAPISettingsSoft(ctx, client, zoneID, cacheAPISettingPaths)
+	zoneSettings, zoneFindings := collectSettingsSoft(ctx, client, zoneID, cacheZoneSettingIDs)
+	records := []evidenceRecord{{Type: "entity", Object: "cache_settings", ID: zoneID, Data: map[string]any{
+		"cache_api":     apiSettings,
+		"zone_settings": zoneSettings,
+	}}}
+	records = append(records, apiFindings...)
+	records = append(records, zoneFindings...)
+	records = append(records, cacheFindings(zoneSettings)...)
+	return records
+}
+
+func investigateWorkerError(ctx context.Context, client *api.Client, accountID string) []evidenceRecord {
+	items, _, err := client.Workers(ctx, accountID, nil)
+	if err != nil {
+		return []evidenceRecord{errorFinding("workers", "warning", "Could not retrieve Workers", err)}
+	}
+	decoded, err := shared.RawItemsToAny(items)
+	if err != nil {
+		return []evidenceRecord{errorFinding("workers", "warning", "Could not decode Workers", err)}
+	}
+	return []evidenceRecord{{Type: "entity", Object: "workers_summary", ID: accountID, Data: map[string]any{
+		"total":   len(decoded),
+		"workers": decoded,
+	}}}
+}
+
+func auditEvidence(ctx context.Context, client *api.Client, accountID string) []evidenceRecord {
+	items, info, err := client.AuditLogs(ctx, accountID, nil)
+	if err != nil {
+		return []evidenceRecord{errorFinding("audit_logs", "info", "Could not retrieve audit logs", err)}
+	}
+	decoded, err := shared.RawItemsToAny(items)
+	if err != nil {
+		return []evidenceRecord{errorFinding("audit_logs", "info", "Could not decode audit logs", err)}
+	}
+	return []evidenceRecord{{Type: "entity", Object: "audit_logs", ID: accountID, Data: map[string]any{
+		"entries":    decoded,
+		"pagination": info,
+	}}}
+}
+
+func trafficFindings(data any) []evidenceRecord {
+	findings := []evidenceRecord{}
+	total, errors := trafficCounts(data)
+	if total > 0 && errors*100/total >= 5 {
+		findings = append(findings, evidenceRecord{
+			Type:     "finding",
+			Severity: "warning",
+			Summary:  "Elevated 5xx response share in traffic analytics",
+			Data:     map[string]any{"requests": total, "server_errors": errors},
+		})
+	}
+	return findings
+}
+
+func trafficCounts(data any) (total, serverErrors int) {
+	viewer := asMap(asMap(data)["data"])
+	viewer = asMap(viewer["viewer"])
+	zones, _ := viewer["zones"].([]any)
+	for _, zone := range zones {
+		series, _ := asMap(zone)["series"].([]any)
+		for _, row := range series {
+			m := asMap(row)
+			count := intNumber(m["count"])
+			total += count
+			status := intNumber(asMap(m["dimensions"])["edgeResponseStatus"])
+			if status >= 500 && status <= 599 {
+				serverErrors += count
+			}
+		}
+	}
+	return total, serverErrors
 }
 
 func writeEvidence(records []evidenceRecord, format string) {
@@ -359,6 +589,19 @@ func stringValue(m map[string]any, key string) string {
 func boolValue(m map[string]any, key string) bool {
 	value, _ := m[key].(bool)
 	return value
+}
+
+func intNumber(value any) int {
+	switch v := value.(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	default:
+		return 0
+	}
 }
 
 func prettyJSON(value any) string {
