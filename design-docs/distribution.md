@@ -22,3 +22,21 @@ Skill installation is repository-local for now:
 ```text
 skills/agent-cloudflare/SKILL.md
 ```
+
+## Skill onboarding
+
+`skills/agent-cloudflare/SKILL.md` should stay as the agent onboarding layer, not a full command manual. It should include:
+
+- when to use the skill
+- secret-safety rules
+- the routing choice between setup, investigations, direct resource reads, raw API reads, and guarded mutations
+- the minimal first commands
+- the output/error contract at a glance
+
+Detailed command syntax, scenario playbooks, and output/error interpretation live in `skills/agent-cloudflare/references/` and should be opened only when needed:
+
+- `scenarios.md`: incident-shaped workflows
+- `commands.md`: exact command syntax
+- `output.md`: NDJSON, evidence rows, error hints, secret handling, and mutation approval rules
+
+This keeps LLM onboarding short while preserving incremental disclosure for deeper tasks.
