@@ -35,11 +35,11 @@ archives:
   - id: agent-cloudflare
     builds:
       - agent-cloudflare
-    name_template: "agent-cloudflare_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .Binary }}-{{ .Os }}-{{ .Arch }}"
   - id: mockcloudflare
     builds:
       - mockcloudflare
-    name_template: "mockcloudflare_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .Binary }}-{{ .Os }}-{{ .Arch }}"
 
 checksum:
   name_template: checksums-sha256.txt
