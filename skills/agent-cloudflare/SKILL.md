@@ -1,0 +1,65 @@
+---
+name: agent-cloudflare
+description: |
+  Investigate Cloudflare accounts, zones, DNS, SSL/TLS, rulesets, cache, Workers, KV, R2, Waiting Rooms, and traffic/security issues using a secret-safe CLI. Use when:
+  - Checking Cloudflare zone configuration or DNS records
+  - Investigating Cloudflare traffic, cache, WAF, rules, SSL/TLS, or Waiting Room state
+  - Looking up account/zone IDs for Cloudflare resources
+  - Making authenticated Cloudflare API reads without exposing API tokens
+  Triggers: "cloudflare", "cf zone", "dns record", "waf", "ruleset", "cache purge", "waiting room", "worker", "workers kv", "r2 bucket", "cloudflare api"
+allowed-tools: Bash(agent-cloudflare *) Bash(mockcloudflare *) Read Grep Glob
+---
+
+# agent-cloudflare
+
+Use `agent-cloudflare` for Cloudflare operations triage and read-only resource inspection.
+
+## Safety
+
+- Never ask the tool to reveal an API token.
+- Never accept pasted Cloudflare tokens in chat. Ask the user to run `agent-cloudflare profiles add <profile> --form` locally so the token goes directly into an OS dialog.
+- Use `agent-cloudflare profiles update <profile> --form` when a stored token needs replacement.
+- Prefer read-only commands.
+- Use `--account-id` and `--zone-id` to scope commands when multiple accounts or zones are visible.
+- Treat mutations such as DNS changes or cache purges as high stakes; this CLI is read-first.
+
+## Start Here
+
+```bash
+agent-cloudflare usage
+agent-cloudflare profiles list
+agent-cloudflare profiles check
+agent-cloudflare config show
+agent-cloudflare accounts list
+agent-cloudflare zones list
+agent-cloudflare investigate usage
+```
+
+For direct exploration:
+
+```bash
+agent-cloudflare zones get example.com
+agent-cloudflare dns list example.com --type A
+agent-cloudflare ssl status example.com
+agent-cloudflare cache settings example.com
+agent-cloudflare rulesets list example.com
+agent-cloudflare waiting-rooms list example.com
+agent-cloudflare investigate zone-health example.com
+agent-cloudflare api get /zones --query name=example.com
+agent-cloudflare api get /zones/<zone_id>/dns_records --query type=CNAME
+```
+
+For local testing, run `mockcloudflare` and set `--base-url http://127.0.0.1:12112` with `--api-token cfut_mock`.
+
+## Output
+
+Lists default to NDJSON. Single resources default to JSON. Errors include `fixable_by` and usually a `hint`.
+
+Investigation output uses evidence records:
+
+```json
+{"type":"entity","object":"zone","id":"...","data":{}}
+{"type":"finding","severity":"warning","summary":"...","data":{}}
+```
+
+Profile/config metadata lives in XDG config. API tokens live in Keychain. `profiles list` and `profiles check` may show non-secret credential type (`cfut`, `legacy_api_token`, or `unknown`) but never the token.

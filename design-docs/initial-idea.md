@@ -36,8 +36,8 @@ Design principles:
 Initial command groups:
 
 ```bash
-agent-cloudflare auth add prod --form
-agent-cloudflare auth check prod
+agent-cloudflare profiles add prod --form
+agent-cloudflare profiles check prod
 agent-cloudflare zones list
 agent-cloudflare zones get example.com
 agent-cloudflare dns list example.com
@@ -70,8 +70,10 @@ The tool is not a replacement for `wrangler`. It fills the gap between raw Cloud
 
 ## Open Questions
 
-- Should v1 be strictly read-only, with mutations added later?
+- Should v1 be strictly read-only, with mutations added later? Current answer:
+  yes, except explicit future mutation groups with separate confirmation gates.
 - Which Cloudflare analytics APIs are available for typical account plans?
-- How should account, zone, and profile defaults be modeled?
+- How should account, zone, and profile defaults be modeled? Current answer:
+  a profile stores one secret token reference plus non-secret default account and zone IDs.
 - Should Waiting Rooms be first-class in v1, or follow after core zone/DNS/SSL/analytics support?
 - Should the CLI support both REST and GraphQL Analytics APIs behind one command shape?
