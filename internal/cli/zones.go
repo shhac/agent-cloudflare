@@ -7,6 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/shhac/lib-agent-cli/creds"
+
 	"github.com/shhac/agent-cloudflare/internal/api"
 	"github.com/shhac/agent-cloudflare/internal/cli/shared"
 	agenterrors "github.com/shhac/agent-cloudflare/internal/errors"
@@ -26,7 +28,7 @@ func registerZones(root *cobra.Command, globals shared.GlobalsFunc) {
 			flags := globals()
 			return shared.WithClient(flags, func(ctx context.Context, client *api.Client, resolved *shared.ResolvedProfile) error {
 				params := url.Values{}
-				shared.AddString(params, "account.id", firstNonEmpty(accountID, resolved.AccountID))
+				shared.AddString(params, "account.id", creds.FirstNonEmpty(accountID, resolved.AccountID))
 				shared.AddString(params, "status", status)
 				items, info, err := client.Zones(ctx, params)
 				if err != nil {
@@ -119,13 +121,4 @@ func looksLikeCloudflareID(value string) bool {
 		}
 	}
 	return true
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if value != "" {
-			return value
-		}
-	}
-	return ""
 }

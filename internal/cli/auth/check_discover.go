@@ -7,6 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/shhac/lib-agent-cli/creds"
+
 	"github.com/shhac/agent-cloudflare/internal/api"
 	"github.com/shhac/agent-cloudflare/internal/cli/shared"
 	"github.com/shhac/agent-cloudflare/internal/config"
@@ -102,7 +104,7 @@ func registerDiscover(parent *cobra.Command, globals shared.GlobalsFunc) {
 				if err != nil {
 					return err
 				}
-				defaultZoneID, defaultZoneName, zoneMap := chooseZone(zones, firstNonEmpty(zoneName, resolved.Zone))
+				defaultZoneID, defaultZoneName, zoneMap := chooseZone(zones, creds.FirstNonEmpty(zoneName, resolved.Zone))
 				if err := config.UpdateProfile(resolved.Alias, func(profile config.Profile) config.Profile {
 					if accountID != "" {
 						profile.AccountID = accountID

@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/shhac/lib-agent-cli/creds"
+
 	"github.com/shhac/agent-cloudflare/internal/api"
 	"github.com/shhac/agent-cloudflare/internal/config"
 	"github.com/shhac/agent-cloudflare/internal/credential"
@@ -41,7 +43,7 @@ func ResolveProfile(flags *GlobalFlags) (*ResolvedProfile, error) {
 	if flags == nil {
 		flags = &GlobalFlags{}
 	}
-	apiToken := firstNonEmpty(flags.APIToken, os.Getenv("CLOUDFLARE_API_TOKEN"), os.Getenv("AGENT_CLOUDFLARE_API_TOKEN"))
+	apiToken := creds.FirstNonEmpty(flags.APIToken, os.Getenv("CLOUDFLARE_API_TOKEN"), os.Getenv("AGENT_CLOUDFLARE_API_TOKEN"))
 	if apiToken != "" {
 		return &ResolvedProfile{
 			Alias:     "override",
@@ -73,9 +75,9 @@ func ResolveProfile(flags *GlobalFlags) (*ResolvedProfile, error) {
 		return nil, agenterrors.Wrap(err, agenterrors.FixableByHuman).
 			WithHint("Re-add the profile with 'agent-cloudflare profiles add " + alias + " --form'")
 	}
-	accountID := firstNonEmpty(flags.AccountID, profile.AccountID)
-	zoneID := firstNonEmpty(flags.ZoneID, profile.DefaultZoneID)
-	zoneName := firstNonEmpty(flags.Zone, profile.DefaultZone)
+	accountID := creds.FirstNonEmpty(flags.AccountID, profile.AccountID)
+	zoneID := creds.FirstNonEmpty(flags.ZoneID, profile.DefaultZoneID)
+	zoneName := creds.FirstNonEmpty(flags.Zone, profile.DefaultZone)
 	if flags.Zone != "" && profile.Zones != nil && flags.ZoneID == "" {
 		if storedZoneID := profile.Zones[flags.Zone]; storedZoneID != "" {
 			zoneID = storedZoneID
@@ -190,13 +192,4 @@ func AddString(values url.Values, key, value string) {
 	if value != "" {
 		values.Set(key, value)
 	}
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if value != "" {
-			return value
-		}
-	}
-	return ""
 }

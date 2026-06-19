@@ -1,7 +1,5 @@
 package cli
 
-import "encoding/json"
-
 func asMap(value any) map[string]any {
 	m, _ := value.(map[string]any)
 	if m == nil {
@@ -33,9 +31,4 @@ func intNumber(value any) int {
 	default:
 		return 0
 	}
-}
-
-func prettyJSON(value any) string {
-	b, _ := json.Marshal(value)
-	return string(b)
 }
