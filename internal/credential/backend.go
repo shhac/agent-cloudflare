@@ -6,7 +6,7 @@ type backend interface {
 	Delete(name string)
 }
 
-var keychain backend = securityKeychain{}
+var keychain backend = newKeychainBackend()
 
 func SetBackendForTest(b backend) func() {
 	previous := keychain

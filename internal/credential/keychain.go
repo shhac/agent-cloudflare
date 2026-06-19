@@ -1,42 +1,31 @@
 package credential
 
-import (
-	"fmt"
-	"os/exec"
-	"runtime"
-	"strings"
-)
+import "github.com/shhac/lib-agent-cli/creds"
 
 const keychainService = "app.paulie.agent-cloudflare"
 
-type securityKeychain struct{}
-
-func (securityKeychain) Store(name, token string) error {
-	if runtime.GOOS != "darwin" {
-		return fmt.Errorf("keychain not available on %s", runtime.GOOS)
-	}
-	_ = exec.Command("security", "delete-generic-password", "-s", keychainService, "-a", name).Run()
-	return exec.Command("security", "add-generic-password",
-		"-s", keychainService, "-a", name, "-w", token, "-U",
-	).Run()
+// keychainBackend adapts creds.Keychain to the local backend interface,
+// preserving the not-found-as-error contract callers rely on.
+type keychainBackend struct {
+	kc *creds.Keychain
 }
 
-func (securityKeychain) Get(name string) (string, error) {
-	if runtime.GOOS != "darwin" {
-		return "", fmt.Errorf("keychain not available on %s", runtime.GOOS)
-	}
-	out, err := exec.Command("security", "find-generic-password",
-		"-s", keychainService, "-a", name, "-w",
-	).Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
+func newKeychainBackend() keychainBackend {
+	return keychainBackend{kc: creds.NewKeychain(keychainService)}
 }
 
-func (securityKeychain) Delete(name string) {
-	if runtime.GOOS != "darwin" {
-		return
+func (b keychainBackend) Store(name, token string) error {
+	return b.kc.Set(name, token)
+}
+
+func (b keychainBackend) Get(name string) (string, error) {
+	value, ok := b.kc.Get(name)
+	if !ok {
+		return "", &NotFoundError{Name: name}
 	}
-	_ = exec.Command("security", "delete-generic-password", "-s", keychainService, "-a", name).Run()
+	return value, nil
+}
+
+func (b keychainBackend) Delete(name string) {
+	_ = b.kc.Delete(name)
 }
