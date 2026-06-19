@@ -1,20 +1,29 @@
+// Package output re-exports the shared output contract from lib-agent-output,
+// keeping the internal/output import path while the wire mechanism (format
+// parsing, JSON/YAML encoding, error rendering) lives in one place. What stays
+// local is agent-cloudflare policy: the writer indirection used by tests, the
+// Cloudflare-shaped pagination trailer, NDJSON raw passthrough, and the
+// one-value ResolveFormat contract its callers depend on. (Migration shim.)
 package output
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"os"
 
-	agenterrors "github.com/shhac/agent-cloudflare/internal/errors"
+	out "github.com/shhac/lib-agent-output"
 	"gopkg.in/yaml.v3"
 )
 
-type Format string
+// Format and its values come from the shared contract; ParseFormat is therefore
+// the family's lenient parser (accepts "ndjson"/"yml", case-insensitive).
+type Format = out.Format
 
 const (
-	FormatJSON   Format = "json"
-	FormatYAML   Format = "yaml"
-	FormatNDJSON Format = "jsonl"
+	FormatJSON   = out.FormatJSON
+	FormatYAML   = out.FormatYAML
+	FormatNDJSON = out.FormatNDJSON
 )
 
 const (
@@ -23,15 +32,36 @@ const (
 )
 
 var (
+	ParseFormat = out.ParseFormat
+	WriteError  = out.WriteError
+)
+
+// init registers agent-cloudflare's YAML encoder with lib-agent-output, so YAML
+// support (and its yaml.v3 dependency) stays in this CLI while the core library
+// remains dependency-free.
+func init() {
+	out.RegisterEncoder(out.FormatYAML, func(v any) ([]byte, error) {
+		var buf bytes.Buffer
+		enc := yaml.NewEncoder(&buf)
+		enc.SetIndent(2)
+		if err := enc.Encode(v); err != nil {
+			return nil, err
+		}
+		_ = enc.Close()
+		return buf.Bytes(), nil
+	})
+}
+
+var (
 	stdout io.Writer = os.Stdout
 	stderr io.Writer = os.Stderr
 )
 
-func SetWriters(out, err io.Writer) func() {
+func SetWriters(o, e io.Writer) func() {
 	prevOut := stdout
 	prevErr := stderr
-	stdout = out
-	stderr = err
+	stdout = o
+	stderr = e
 	return func() {
 		stdout = prevOut
 		stderr = prevErr
@@ -41,42 +71,25 @@ func SetWriters(out, err io.Writer) func() {
 func Stdout() io.Writer { return stdout }
 func Stderr() io.Writer { return stderr }
 
-func ParseFormat(s string) (Format, error) {
-	switch s {
-	case "json":
-		return FormatJSON, nil
-	case "yaml":
-		return FormatYAML, nil
-	case "jsonl", "ndjson":
-		return FormatNDJSON, nil
-	default:
-		return "", agenterrors.Newf(agenterrors.FixableByAgent, "unknown format %q, expected: json, yaml, jsonl", s).
-			WithHint("Use --format json, --format yaml, or --format jsonl")
-	}
-}
-
+// ResolveFormat keeps agent-cloudflare's one-value contract: an unparseable
+// flag falls back to the default rather than surfacing an error (callers treat
+// format selection as best-effort).
 func ResolveFormat(flagFormat string, defaultFormat Format) Format {
-	if flagFormat == "" {
-		return defaultFormat
-	}
-	f, err := ParseFormat(flagFormat)
+	f, err := out.ResolveFormat(flagFormat, defaultFormat)
 	if err != nil {
 		return defaultFormat
 	}
 	return f
 }
 
+// Print prunes nulls (opt-in) then encodes data in the given format via the
+// shared encoder, to the indirected stdout writer.
 func Print(data any, format Format, prune bool) {
-	switch format {
-	case FormatYAML:
-		printYAML(data, prune)
-	default:
-		printJSON(data, prune)
-	}
+	_ = out.Print(Stdout(), data, format, pruner(prune))
 }
 
 func PrintJSON(data any, prune bool) {
-	printJSON(data, prune)
+	Print(data, FormatJSON, prune)
 }
 
 func WriteRawJSON(raw json.RawMessage, format Format, indent bool) {
@@ -92,58 +105,6 @@ func WriteRawJSON(raw json.RawMessage, format Format, indent bool) {
 		return
 	}
 	Print(data, format, true)
-}
-
-func printJSON(data any, prune bool) {
-	b, err := json.Marshal(data)
-	if err != nil {
-		return
-	}
-	var decoded any
-	if err := json.Unmarshal(b, &decoded); err != nil {
-		return
-	}
-	if prune {
-		decoded = pruneNulls(decoded)
-	}
-	enc := json.NewEncoder(Stdout())
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	_ = enc.Encode(decoded)
-}
-
-func printYAML(data any, prune bool) {
-	b, err := json.Marshal(data)
-	if err != nil {
-		return
-	}
-	var decoded any
-	if err := json.Unmarshal(b, &decoded); err != nil {
-		return
-	}
-	if prune {
-		decoded = pruneNulls(decoded)
-	}
-	enc := yaml.NewEncoder(Stdout())
-	enc.SetIndent(2)
-	_ = enc.Encode(decoded)
-}
-
-func WriteError(w io.Writer, err error) {
-	var aerr *agenterrors.APIError
-	if !agenterrors.As(err, &aerr) {
-		aerr = agenterrors.Wrap(err, agenterrors.FixableByAgent)
-	}
-	payload := map[string]any{
-		"error":      aerr.Message,
-		"fixable_by": string(aerr.FixableBy),
-	}
-	if aerr.Hint != "" {
-		payload["hint"] = aerr.Hint
-	}
-	enc := json.NewEncoder(w)
-	enc.SetEscapeHTML(false)
-	_ = enc.Encode(payload)
 }
 
 type NDJSONWriter struct {
@@ -164,6 +125,8 @@ func (n *NDJSONWriter) WriteMetaLine(key string, value any) error {
 	return n.enc.Encode(map[string]any{key: value})
 }
 
+// Pagination is Cloudflare-shaped (page/per_page/count totals), so it stays
+// local rather than using out.Pagination.
 type Pagination struct {
 	Page       int `json:"page,omitempty"`
 	PerPage    int `json:"per_page,omitempty"`
@@ -176,24 +139,11 @@ func (n *NDJSONWriter) WritePagination(p *Pagination) error {
 	return n.WriteMetaLine(MetaKeyPagination, p)
 }
 
-func pruneNulls(v any) any {
-	switch val := v.(type) {
-	case map[string]any:
-		out := make(map[string]any, len(val))
-		for k, v := range val {
-			if v == nil {
-				continue
-			}
-			out[k] = pruneNulls(v)
-		}
-		return out
-	case []any:
-		out := make([]any, len(val))
-		for i, v := range val {
-			out[i] = pruneNulls(v)
-		}
-		return out
-	default:
-		return v
+// pruner maps the legacy bool prune flag onto a shared Pruner: prune nulls when
+// set, no pruning otherwise (preserving exact encoding).
+func pruner(prune bool) out.Pruner {
+	if !prune {
+		return nil
 	}
+	return out.PruneNils
 }
