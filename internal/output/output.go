@@ -7,13 +7,12 @@
 package output
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 	"os"
 
+	_ "github.com/shhac/lib-agent-cli/yaml" // registers the shared YAML encoder for out.FormatYAML
 	out "github.com/shhac/lib-agent-output"
-	"gopkg.in/yaml.v3"
 )
 
 // Format and its values come from the shared contract; ParseFormat is therefore
@@ -35,22 +34,6 @@ var (
 	ParseFormat = out.ParseFormat
 	WriteError  = out.WriteError
 )
-
-// init registers agent-cloudflare's YAML encoder with lib-agent-output, so YAML
-// support (and its yaml.v3 dependency) stays in this CLI while the core library
-// remains dependency-free.
-func init() {
-	out.RegisterEncoder(out.FormatYAML, func(v any) ([]byte, error) {
-		var buf bytes.Buffer
-		enc := yaml.NewEncoder(&buf)
-		enc.SetIndent(2)
-		if err := enc.Encode(v); err != nil {
-			return nil, err
-		}
-		_ = enc.Close()
-		return buf.Bytes(), nil
-	})
-}
 
 var (
 	stdout io.Writer = os.Stdout
