@@ -118,12 +118,12 @@ func captureZoneSnapshot(ctx context.Context, client *api.Client, zoneID string)
 	if err != nil {
 		return nil, err
 	}
-	sslSettings, sslFindings := collectSettingsSoft(ctx, client, zoneID, sslSettingIDs)
-	cacheAPI, cacheAPIFindings := collectCacheAPISettingsSoft(ctx, client, zoneID, cacheAPISettingPaths)
-	cacheZone, cacheZoneFindings := collectSettingsSoft(ctx, client, zoneID, cacheZoneSettingIDs)
-	if len(sslFindings)+len(cacheAPIFindings)+len(cacheZoneFindings) > 0 {
-		// Soft failures are captured in snapshot metadata rather than aborting the whole snapshot.
-	}
+	// The "soft" collectors swallow per-setting fetch errors so one failing
+	// setting doesn't abort the whole snapshot; their findings are intentionally
+	// not surfaced here (the snapshot carries the settings it could read).
+	sslSettings, _ := collectSettingsSoft(ctx, client, zoneID, sslSettingIDs)
+	cacheAPI, _ := collectCacheAPISettingsSoft(ctx, client, zoneID, cacheAPISettingPaths)
+	cacheZone, _ := collectSettingsSoft(ctx, client, zoneID, cacheZoneSettingIDs)
 	dnsRecords := []any{}
 	if items, _, err := client.DNSRecords(ctx, zoneID, nil); err == nil {
 		dnsRecords, _ = shared.RawItemsToAny(items)
