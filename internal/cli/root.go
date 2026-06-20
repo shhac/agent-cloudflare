@@ -59,7 +59,29 @@ func NewRootCmd(version string) *cobra.Command {
 	registerBaseline(root, globalsFunc)
 	registerRawAPI(root, globalsFunc)
 
+	// NewRoot installs the structured unknown-command handler on the root only.
+	// Apply the same handling to every domain group (and nested subgroup) so an
+	// unknown leaf — e.g. "dns bogus" or "kv namespaces bogus" — returns a
+	// structured error listing that group's commands instead of cobra usage text.
+	installGroupUnknownHandlers(root)
+
 	return root
+}
+
+// installGroupUnknownHandlers walks cmd's descendants and installs
+// HandleUnknownCommand on each parent group (a command with subcommands and no
+// Run/RunE of its own). cmd itself is left untouched so the root keeps its own
+// UnknownHint.
+func installGroupUnknownHandlers(cmd *cobra.Command) {
+	for _, sub := range cmd.Commands() {
+		if len(sub.Commands()) == 0 {
+			continue
+		}
+		if sub.RunE == nil && sub.Run == nil {
+			libcli.HandleUnknownCommand(sub, "run 'agent-cloudflare usage' to see the available domains")
+		}
+		installGroupUnknownHandlers(sub)
+	}
 }
 
 func applyConfiguredDefaults(cmd *cobra.Command, globals *shared.GlobalFlags) {

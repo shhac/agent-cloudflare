@@ -7,7 +7,6 @@ import (
 
 	"github.com/shhac/agent-cloudflare/internal/cli/shared"
 	"github.com/shhac/agent-cloudflare/internal/config"
-	"github.com/shhac/agent-cloudflare/internal/output"
 )
 
 func registerDefault(parent *cobra.Command) {
@@ -17,8 +16,7 @@ func registerDefault(parent *cobra.Command) {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.SetDefault(args[0]); err != nil {
-				output.WriteError(output.Stderr(), err)
-				return nil
+				return err
 			}
 			shared.WriteItem(map[string]any{"status": "default_set", "profile": args[0]}, "")
 			return nil
@@ -67,12 +65,10 @@ func registerRemove(parent *cobra.Command) {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := credentialRemove(args[0]); err != nil {
-				output.WriteError(output.Stderr(), err)
-				return nil
+				return err
 			}
 			if err := config.RemoveProfile(args[0]); err != nil {
-				output.WriteError(output.Stderr(), err)
-				return nil
+				return err
 			}
 			shared.WriteItem(map[string]any{"status": "removed", "profile": args[0]}, "")
 			return nil

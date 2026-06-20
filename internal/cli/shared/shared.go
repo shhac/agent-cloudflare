@@ -104,27 +104,25 @@ func WithResolvedClient(flags *GlobalFlags, resolved *ResolvedProfile, fn func(c
 func WithClient(flags *GlobalFlags, fn func(context.Context, *api.Client, *ResolvedProfile) error) error {
 	resolved, err := ResolveProfile(flags)
 	if err != nil {
-		output.WriteError(output.Stderr(), err)
-		return nil
+		return err
 	}
 	return WithResolvedClient(flags, resolved, func(ctx context.Context, client *api.Client) error {
-		if err := fn(ctx, client, resolved); err != nil {
-			output.WriteError(output.Stderr(), err)
-		}
-		return nil
+		return fn(ctx, client, resolved)
 	})
 }
 
-func RequireFlag(flag, value, hint string) bool {
+// RequireFlag returns nil when value is set, or a structured fixable_by:agent
+// error otherwise. Callers return the error so libcli.Run renders it once and
+// exits 1.
+func RequireFlag(flag, value, hint string) error {
 	if value != "" {
-		return true
+		return nil
 	}
 	err := agenterrors.Newf(agenterrors.FixableByAgent, "--%s is required", flag)
 	if hint != "" {
 		err = err.WithHint(hint)
 	}
-	output.WriteError(output.Stderr(), err)
-	return false
+	return err
 }
 
 func ContextWithTimeout(parent context.Context, ms int) (context.Context, context.CancelFunc) {

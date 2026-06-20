@@ -8,7 +8,6 @@ import (
 	"github.com/shhac/agent-cloudflare/internal/cli/shared"
 	"github.com/shhac/agent-cloudflare/internal/config"
 	agenterrors "github.com/shhac/agent-cloudflare/internal/errors"
-	"github.com/shhac/agent-cloudflare/internal/output"
 )
 
 func registerConfig(root *cobra.Command, globals shared.GlobalsFunc) {
@@ -38,19 +37,16 @@ func registerConfig(root *cobra.Command, globals shared.GlobalsFunc) {
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if args[0] != "timeout_ms" {
-				output.WriteError(output.Stderr(), agenterrors.Newf(agenterrors.FixableByAgent, "unknown config key %q", args[0]).
-					WithHint("Supported keys: timeout_ms"))
-				return nil
+				return agenterrors.Newf(agenterrors.FixableByAgent, "unknown config key %q", args[0]).
+					WithHint("Supported keys: timeout_ms")
 			}
 			var value int
 			if _, err := fmtSscanf(args[1], "%d", &value); err != nil {
-				output.WriteError(output.Stderr(), agenterrors.Wrap(err, agenterrors.FixableByAgent).
-					WithHint("Use an integer value, for example: agent-cloudflare config set timeout_ms 10000"))
-				return nil
+				return agenterrors.Wrap(err, agenterrors.FixableByAgent).
+					WithHint("Use an integer value, for example: agent-cloudflare config set timeout_ms 10000")
 			}
 			if err := config.SetDefaultValue(args[0], value); err != nil {
-				output.WriteError(output.Stderr(), err)
-				return nil
+				return err
 			}
 			shared.WriteItem(map[string]any{"status": "set", "key": args[0], "value": value}, globals().Format)
 			return nil
@@ -62,8 +58,7 @@ func registerConfig(root *cobra.Command, globals shared.GlobalsFunc) {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.UnsetDefaultValue(args[0]); err != nil {
-				output.WriteError(output.Stderr(), err)
-				return nil
+				return err
 			}
 			shared.WriteItem(map[string]any{"status": "unset", "key": args[0]}, globals().Format)
 			return nil

@@ -7,7 +7,6 @@ import (
 	"github.com/shhac/agent-cloudflare/internal/config"
 	"github.com/shhac/agent-cloudflare/internal/credential"
 	agenterrors "github.com/shhac/agent-cloudflare/internal/errors"
-	"github.com/shhac/agent-cloudflare/internal/output"
 )
 
 func registerAdd(parent *cobra.Command) {
@@ -23,19 +22,17 @@ func registerAdd(parent *cobra.Command) {
 			if form {
 				filledToken, err := promptTokenViaDialog(cmd.Context(), alias, apiToken)
 				if err != nil {
-					output.WriteError(output.Stderr(), err)
-					return nil
+					return err
 				}
 				apiToken = filledToken
 			}
-			if !shared.RequireFlag("api-token", apiToken, "Provide --api-token <secret> or use --form") {
-				return nil
+			if err := shared.RequireFlag("api-token", apiToken, "Provide --api-token <secret> or use --form"); err != nil {
+				return err
 			}
 			storage, err := credentialStore(alias, apiToken)
 			if err != nil {
-				output.WriteError(output.Stderr(), agenterrors.Wrap(err, agenterrors.FixableByHuman).
-					WithHint("Use --form on a local graphical machine so the token can be stored in Keychain"))
-				return nil
+				return agenterrors.Wrap(err, agenterrors.FixableByHuman).
+					WithHint("Use --form on a local graphical machine so the token can be stored in Keychain")
 			}
 			profile := config.Profile{
 				AccountID:      accountID,
@@ -48,9 +45,8 @@ func registerAdd(parent *cobra.Command) {
 				profile.Zones = map[string]string{zoneName: zoneID}
 			}
 			if err := config.StoreProfile(alias, profile); err != nil {
-				output.WriteError(output.Stderr(), agenterrors.Wrap(err, agenterrors.FixableByHuman).
-					WithHint("Check that the config directory is writable"))
-				return nil
+				return agenterrors.Wrap(err, agenterrors.FixableByHuman).
+					WithHint("Check that the config directory is writable")
 			}
 			shared.WriteItem(map[string]any{
 				"status":          "added",
@@ -118,25 +114,21 @@ func registerUpdate(parent *cobra.Command) {
 				zoneNameChanged:    cmd.Flags().Changed("zone"),
 			}
 			if !req.hasChanges() {
-				output.WriteError(output.Stderr(), agenterrors.New("no profile updates requested", agenterrors.FixableByAgent).
-					WithHint("Use --api-token, --form, --account-id, --account-name, --zone-id, --zone, --clear-account, --clear-zone, or --default"))
-				return nil
+				return agenterrors.New("no profile updates requested", agenterrors.FixableByAgent).
+					WithHint("Use --api-token, --form, --account-id, --account-name, --zone-id, --zone, --clear-account, --clear-zone, or --default")
 			}
 			if _, ok := config.Read().Profiles[req.Alias]; !ok {
-				output.WriteError(output.Stderr(), agenterrors.Newf(agenterrors.FixableByHuman, "profile %q is not configured", req.Alias).
-					WithHint("Run 'agent-cloudflare profiles list' to see profiles or 'agent-cloudflare profiles add "+req.Alias+" --form' to create it"))
-				return nil
+				return agenterrors.Newf(agenterrors.FixableByHuman, "profile %q is not configured", req.Alias).
+					WithHint("Run 'agent-cloudflare profiles list' to see profiles or 'agent-cloudflare profiles add " + req.Alias + " --form' to create it")
 			}
 			if form {
 				filledToken, err := promptTokenViaDialog(cmd.Context(), req.Alias, req.APIToken)
 				if err != nil {
-					output.WriteError(output.Stderr(), err)
-					return nil
+					return err
 				}
 				req.APIToken = filledToken
 			}
-			runProfileUpdate(req)
-			return nil
+			return runProfileUpdate(req)
 		},
 	}
 	cmd.Flags().StringVar(&apiToken, "api-token", "", "Replacement Cloudflare API token")
@@ -156,40 +148,38 @@ func (r profileUpdateRequest) hasChanges() bool {
 		r.zoneIDChanged || r.zoneNameChanged || r.ClearAccount || r.ClearZone || r.SetDefault
 }
 
-func runProfileUpdate(req profileUpdateRequest) {
+func runProfileUpdate(req profileUpdateRequest) error {
 	credentialType := ""
 	storage := ""
 	if req.KeyRequested {
-		if !shared.RequireFlag("api-token", req.APIToken, "Provide --api-token <secret> or use --form") {
-			return
+		if err := shared.RequireFlag("api-token", req.APIToken, "Provide --api-token <secret> or use --form"); err != nil {
+			return err
 		}
 		var err error
 		storage, err = credentialStore(req.Alias, req.APIToken)
 		if err != nil {
-			output.WriteError(output.Stderr(), agenterrors.Wrap(err, agenterrors.FixableByHuman).
-				WithHint("Use --form on a local graphical machine so the token can be stored in Keychain"))
-			return
+			return agenterrors.Wrap(err, agenterrors.FixableByHuman).
+				WithHint("Use --form on a local graphical machine so the token can be stored in Keychain")
 		}
 		credentialType = credential.Type(req.APIToken)
 	}
 	if err := config.UpdateProfile(req.Alias, func(profile config.Profile) config.Profile {
 		return applyProfileUpdate(profile, req, credentialType)
 	}); err != nil {
-		output.WriteError(output.Stderr(), agenterrors.Wrap(err, agenterrors.FixableByHuman).
-			WithHint("Run 'agent-cloudflare profiles list' to see configured profiles"))
-		return
+		return agenterrors.Wrap(err, agenterrors.FixableByHuman).
+			WithHint("Run 'agent-cloudflare profiles list' to see configured profiles")
 	}
 	if req.SetDefault {
 		if err := config.SetDefault(req.Alias); err != nil {
-			output.WriteError(output.Stderr(), agenterrors.Wrap(err, agenterrors.FixableByHuman).
-				WithHint("Run 'agent-cloudflare profiles list' to see configured profiles"))
-			return
+			return agenterrors.Wrap(err, agenterrors.FixableByHuman).
+				WithHint("Run 'agent-cloudflare profiles list' to see configured profiles")
 		}
 	}
 	cfg := config.Read()
 	profile := cfg.Profiles[req.Alias]
 	item := profileUpdateOutput(req.Alias, profile, cfg.DefaultProfile == req.Alias, storage)
 	shared.WriteItem(item, "")
+	return nil
 }
 
 func applyProfileUpdate(profile config.Profile, req profileUpdateRequest, credentialType string) config.Profile {

@@ -286,9 +286,9 @@ func TestAccountResourceCommands(t *testing.T) {
 
 func TestMissingZoneReturnsJSONErrorHint(t *testing.T) {
 	baseURL := withMockServer(t)
-	result := runCommand(t, "--base-url", baseURL, "--api-token", "cfut_mock", "dns", "list")
-	if result.err != nil {
-		t.Fatalf("Execute() error = %v", result.err)
+	result := runExecute(t, "--base-url", baseURL, "--api-token", "cfut_mock", "dns", "list")
+	if result.err == nil {
+		t.Fatalf("expected command error when no zone is resolvable")
 	}
 	if result.stdout != "" {
 		t.Fatalf("stdout = %s, want empty", result.stdout)
@@ -304,9 +304,9 @@ func TestMissingZoneReturnsJSONErrorHint(t *testing.T) {
 
 func TestAccountScopeErrorHasDiscoveryHint(t *testing.T) {
 	baseURL := withMockServer(t)
-	result := runCommand(t, "--base-url", baseURL, "--api-token", "cfut_mock", "workers", "list")
-	if result.err != nil {
-		t.Fatalf("Execute() error = %v", result.err)
+	result := runExecute(t, "--base-url", baseURL, "--api-token", "cfut_mock", "workers", "list")
+	if result.err == nil {
+		t.Fatalf("expected command error when no account is resolvable")
 	}
 	var payload map[string]any
 	if err := json.Unmarshal([]byte(result.stderr), &payload); err != nil {

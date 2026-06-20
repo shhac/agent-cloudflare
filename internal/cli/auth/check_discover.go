@@ -14,7 +14,6 @@ import (
 	"github.com/shhac/agent-cloudflare/internal/config"
 	"github.com/shhac/agent-cloudflare/internal/credential"
 	agenterrors "github.com/shhac/agent-cloudflare/internal/errors"
-	"github.com/shhac/agent-cloudflare/internal/output"
 )
 
 func registerCheck(parent *cobra.Command, globals shared.GlobalsFunc) {
@@ -29,8 +28,7 @@ func registerCheck(parent *cobra.Command, globals shared.GlobalsFunc) {
 			}
 			resolved, err := shared.ResolveProfile(flags)
 			if err != nil {
-				output.WriteError(output.Stderr(), err)
-				return nil
+				return err
 			}
 			credentialType := credential.Type(resolved.Token)
 			if resolved.Alias != "override" && credentialType != resolved.Profile.CredentialType {
@@ -39,7 +37,7 @@ func registerCheck(parent *cobra.Command, globals shared.GlobalsFunc) {
 					return profile
 				})
 			}
-			err = shared.WithResolvedClient(flags, resolved, func(ctx context.Context, client *api.Client) error {
+			return shared.WithResolvedClient(flags, resolved, func(ctx context.Context, client *api.Client) error {
 				raw, err := client.VerifyToken(ctx)
 				if err != nil {
 					return err
@@ -56,10 +54,6 @@ func registerCheck(parent *cobra.Command, globals shared.GlobalsFunc) {
 				}, "")
 				return nil
 			})
-			if err != nil {
-				output.WriteError(output.Stderr(), err)
-			}
-			return nil
 		},
 	}
 	parent.AddCommand(cmd)
@@ -79,15 +73,13 @@ func registerDiscover(parent *cobra.Command, globals shared.GlobalsFunc) {
 			}
 			resolved, err := shared.ResolveProfile(flags)
 			if err != nil {
-				output.WriteError(output.Stderr(), err)
-				return nil
+				return err
 			}
 			if resolved.Alias == "override" {
-				output.WriteError(output.Stderr(), agenterrors.New("profiles discover requires a stored profile", agenterrors.FixableByHuman).
-					WithHint("Run 'agent-cloudflare profiles add <profile> --form' first, then discover metadata for it"))
-				return nil
+				return agenterrors.New("profiles discover requires a stored profile", agenterrors.FixableByHuman).
+					WithHint("Run 'agent-cloudflare profiles add <profile> --form' first, then discover metadata for it")
 			}
-			err = shared.WithResolvedClient(flags, resolved, func(ctx context.Context, client *api.Client) error {
+			return shared.WithResolvedClient(flags, resolved, func(ctx context.Context, client *api.Client) error {
 				accounts, _, err := client.Accounts(ctx, accountListParams(resolved.AccountID))
 				if err != nil {
 					return err
@@ -138,10 +130,6 @@ func registerDiscover(parent *cobra.Command, globals shared.GlobalsFunc) {
 				}, flags.Format)
 				return nil
 			})
-			if err != nil {
-				output.WriteError(output.Stderr(), err)
-			}
-			return nil
 		},
 	}
 	cmd.Flags().StringVar(&zoneName, "zone", "", "Prefer this exact zone as the default")
