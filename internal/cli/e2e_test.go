@@ -233,6 +233,28 @@ func TestProfileLifecycleDoesNotExposeSecrets(t *testing.T) {
 	}
 }
 
+func TestConfigCommandsHonorFormatFlag(t *testing.T) {
+	_ = withTempConfigAndKeychain(t)
+
+	// Default for single items stays pretty JSON.
+	def := runCommand(t, "config", "path")
+	if def.err != nil || def.stderr != "" {
+		t.Fatalf("config path err=%v stderr=%s stdout=%s", def.err, def.stderr, def.stdout)
+	}
+	if !strings.HasPrefix(strings.TrimSpace(def.stdout), "{") {
+		t.Fatalf("config path default = %s, want JSON object", def.stdout)
+	}
+
+	// --format yaml must reach config output rather than silently falling back.
+	y := runCommand(t, "config", "path", "--format", "yaml")
+	if y.err != nil || y.stderr != "" {
+		t.Fatalf("config path yaml err=%v stderr=%s stdout=%s", y.err, y.stderr, y.stdout)
+	}
+	if !strings.HasPrefix(strings.TrimSpace(y.stdout), "path:") {
+		t.Fatalf("config path --format yaml = %s, want YAML", y.stdout)
+	}
+}
+
 func TestAccountResourceCommands(t *testing.T) {
 	baseURL := withMockServer(t)
 	baseArgs := []string{"--base-url", baseURL, "--api-token", "cfut_mock", "--account-id", "023e105f4ecef8ad9ca31a8372d0c353"}

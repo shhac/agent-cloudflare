@@ -11,7 +11,7 @@ import (
 	"github.com/shhac/agent-cloudflare/internal/output"
 )
 
-func registerConfig(root *cobra.Command) {
+func registerConfig(root *cobra.Command, globals shared.GlobalsFunc) {
 	configCmd := &cobra.Command{
 		Use:   "config",
 		Short: "Inspect non-secret CLI configuration",
@@ -20,7 +20,7 @@ func registerConfig(root *cobra.Command) {
 		Use:   "show",
 		Short: "Show non-secret config",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			shared.WriteItem(config.Read(), "")
+			shared.WriteItem(config.Read(), globals().Format)
 			return nil
 		},
 	})
@@ -28,7 +28,7 @@ func registerConfig(root *cobra.Command) {
 		Use:   "path",
 		Short: "Show config file path",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			shared.WriteItem(map[string]any{"path": config.ConfigPath()}, "")
+			shared.WriteItem(map[string]any{"path": config.ConfigPath()}, globals().Format)
 			return nil
 		},
 	})
@@ -52,7 +52,7 @@ func registerConfig(root *cobra.Command) {
 				output.WriteError(output.Stderr(), err)
 				return nil
 			}
-			shared.WriteItem(map[string]any{"status": "set", "key": args[0], "value": value}, "")
+			shared.WriteItem(map[string]any{"status": "set", "key": args[0], "value": value}, globals().Format)
 			return nil
 		},
 	}
@@ -65,7 +65,7 @@ func registerConfig(root *cobra.Command) {
 				output.WriteError(output.Stderr(), err)
 				return nil
 			}
-			shared.WriteItem(map[string]any{"status": "unset", "key": args[0]}, "")
+			shared.WriteItem(map[string]any{"status": "unset", "key": args[0]}, globals().Format)
 			return nil
 		},
 	}
