@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/shhac/agent-cloudflare/internal/dialog"
+	"github.com/shhac/lib-agent-cli/dialog"
+
 	agenterrors "github.com/shhac/agent-cloudflare/internal/errors"
 )
 
