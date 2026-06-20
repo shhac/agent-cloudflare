@@ -17,7 +17,7 @@ Finding severities are `info`, `warning`, and `critical`.
 
 ## Error Contract
 
-Errors are machine-readable JSON on stderr. They include a stable code, a human-facing message, `fixable_by`, and usually a `hint`.
+Errors are a single JSON object on stderr: `{"error":"...","fixable_by":"agent"|"human"|"retry","hint"?:"...","retry_after_seconds"?:N}` — exit 1. `hint` and `retry_after_seconds` are optional.
 
 Common `fixable_by` meanings:
 

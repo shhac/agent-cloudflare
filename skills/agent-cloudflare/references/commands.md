@@ -51,6 +51,8 @@ agent-cloudflare r2 buckets list --account-id <account_id>
 agent-cloudflare audit list --account-id <account_id>
 agent-cloudflare analytics traffic example.com --since 1h
 agent-cloudflare snapshot zone example.com
+agent-cloudflare baseline check [zone-name-or-id] --file baseline.json
+agent-cloudflare zone-settings get <setting-id> [zone-name-or-id]
 ```
 
 ## Raw API Reads

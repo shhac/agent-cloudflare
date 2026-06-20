@@ -36,6 +36,8 @@ Read-only exploration:
   agent-cloudflare investigate zone-health example.com
   agent-cloudflare investigate traffic-spike example.com --since 1h
   agent-cloudflare snapshot zone example.com
+  agent-cloudflare baseline check example.com --file baseline.json
+  agent-cloudflare zone-settings get <setting-id> example.com
   agent-cloudflare api get /zones --query name=example.com
 
 Explicit mutations:
@@ -47,7 +49,7 @@ Explicit mutations:
 Output:
   Lists default to NDJSON/jsonl.
   Single resources default to JSON.
-  Errors are JSON on stderr with error, fixable_by, and hint.
+  Errors are JSON on stderr: {"error":"...","fixable_by":"agent"|"human"|"retry","hint"?:"...","retry_after_seconds"?:N} (hint and retry_after_seconds optional).
 
 Secrets:
   Prefer --form for setup. Stored API tokens are read internally from Keychain and are never printed.
