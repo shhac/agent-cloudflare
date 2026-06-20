@@ -49,7 +49,7 @@ func runCommand(t *testing.T, args ...string) commandResult {
 	restoreWriters := output.SetWriters(&stdout, &stderr)
 	t.Cleanup(restoreWriters)
 
-	cmd := newRootCmd("test")
+	cmd := NewRootCmd("test")
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
 	cmd.SetArgs(args)

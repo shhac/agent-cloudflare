@@ -1,7 +1,7 @@
 package main
 
 import (
-	"os"
+	libcli "github.com/shhac/lib-agent-cli/cli"
 
 	"github.com/shhac/agent-cloudflare/internal/cli"
 )
@@ -9,7 +9,5 @@ import (
 var version = "dev"
 
 func main() {
-	if err := cli.Execute(version); err != nil {
-		os.Exit(1)
-	}
+	libcli.Run(cli.NewRootCmd(version))
 }

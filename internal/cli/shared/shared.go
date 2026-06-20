@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	libcli "github.com/shhac/lib-agent-cli/cli"
 	"github.com/shhac/lib-agent-cli/creds"
 
 	"github.com/shhac/agent-cloudflare/internal/api"
@@ -17,15 +18,14 @@ import (
 )
 
 type GlobalFlags struct {
+	libcli.Globals // Format, TimeoutMS, Debug
+
 	Profile   string
 	AccountID string
 	ZoneID    string
 	Zone      string
 	APIToken  string
 	BaseURL   string
-	Format    string
-	Timeout   int
-	Debug     bool
 }
 
 type GlobalsFunc = func() *GlobalFlags
@@ -94,7 +94,7 @@ func ResolveProfile(flags *GlobalFlags) (*ResolvedProfile, error) {
 }
 
 func WithResolvedClient(flags *GlobalFlags, resolved *ResolvedProfile, fn func(context.Context, *api.Client) error) error {
-	ctx, cancel := ContextWithTimeout(context.Background(), flags.Timeout)
+	ctx, cancel := ContextWithTimeout(context.Background(), flags.TimeoutMS)
 	defer cancel()
 	client := api.NewClient(api.Options{Token: resolved.Token, BaseURL: flags.BaseURL})
 	client.SetDebug(flags.Debug)
