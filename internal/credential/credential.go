@@ -9,8 +9,15 @@ import (
 	"github.com/shhac/agent-cloudflare/internal/config"
 )
 
+// keychainSentinel is stored in the index in place of the real token when the
+// secret lives in the macOS keychain. When the keychain is unavailable (non-
+// macOS, or opted out via AGENT_CLOUDFLARE_NO_KEYCHAIN / LIB_AGENT_NO_KEYCHAIN),
+// the raw token is kept in the 0600 index file instead.
+const keychainSentinel = "__KEYCHAIN__"
+
 type credentialEntry struct {
-	KeychainManaged bool `json:"keychain_managed"`
+	Token           string `json:"token,omitempty"`
+	KeychainManaged bool   `json:"keychain_managed"`
 }
 
 type NotFoundError struct {
@@ -54,19 +61,29 @@ func writeIndex(index map[string]credentialEntry) error {
 	return os.WriteFile(credentialsPath(), append(data, '\n'), 0o600)
 }
 
+// Store persists a credential. It prefers the macOS keychain; when the keychain
+// is unavailable (non-macOS, or opted out), it keeps the raw token in the 0600
+// index file instead. Returns "keychain" or "file" so the caller can surface the
+// choice.
 func Store(name, token string) (string, error) {
-	if err := keychain.Store(name, token); err != nil {
-		return "", err
-	}
 	index, err := readIndex()
 	if err != nil {
 		return "", err
 	}
-	index[name] = credentialEntry{KeychainManaged: true}
+
+	entry := credentialEntry{Token: token}
+	storage := "file"
+	if err := keychain.Store(name, token); err == nil {
+		entry.Token = keychainSentinel
+		entry.KeychainManaged = true
+		storage = "keychain"
+	}
+
+	index[name] = entry
 	if err := writeIndex(index); err != nil {
 		return "", err
 	}
-	return "keychain", nil
+	return storage, nil
 }
 
 func Get(name string) (string, error) {
@@ -78,10 +95,10 @@ func Get(name string) (string, error) {
 	if !ok {
 		return "", &NotFoundError{Name: name}
 	}
-	if !entry.KeychainManaged {
-		return "", fmt.Errorf("profile %q is not keychain managed", name)
+	if entry.KeychainManaged {
+		return keychain.Get(name)
 	}
-	return keychain.Get(name)
+	return entry.Token, nil
 }
 
 func Remove(name string) error {

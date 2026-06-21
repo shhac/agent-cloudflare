@@ -3,6 +3,7 @@ package credential
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -97,15 +98,85 @@ func TestMissingCredentialReturnsNotFound(t *testing.T) {
 	}
 }
 
-func TestStoreBackendFailureDoesNotWriteIndex(t *testing.T) {
+func TestStoreBackendFailureFallsBackToFile(t *testing.T) {
 	withTempCredentialConfig(t, &fakeBackend{err: errors.New("keychain unavailable")})
 
-	if _, err := Store("prod", "cfut_secret"); err == nil {
-		t.Fatalf("Store() error = nil")
+	storage, err := Store("prod", "cfut_secret")
+	if err != nil {
+		t.Fatalf("Store() error = %v", err)
 	}
-	if data, err := os.ReadFile(credentialsPath()); err == nil {
-		t.Fatalf("credentials index should not be written after backend failure: %s", data)
-	} else if !os.IsNotExist(err) {
-		t.Fatalf("ReadFile(credentialsPath) error = %v, want not exist", err)
+	if storage != "file" {
+		t.Fatalf("storage = %q, want file", storage)
+	}
+	data, err := os.ReadFile(credentialsPath())
+	if err != nil {
+		t.Fatalf("ReadFile(credentialsPath) error = %v", err)
+	}
+	if !strings.Contains(string(data), "cfut_secret") {
+		t.Fatalf("credentials index should hold the raw token under keychain failure: %s", data)
+	}
+	if strings.Contains(string(data), keychainSentinel) {
+		t.Fatalf("credentials index should not hold the sentinel under keychain failure: %s", data)
+	}
+
+	token, err := Get("prod")
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	if token != "cfut_secret" {
+		t.Fatalf("token = %q, want cfut_secret", token)
+	}
+}
+
+// TestStore_Headless_FileFallback exercises the credential-WRITE path
+// non-interactively. The per-CLI keychain opt-out (derived by lib-agent-cli from
+// the "app.paulie.agent-cloudflare" service) makes the keychain report
+// unavailable, so Store deterministically keeps the raw token in the 0600 index
+// file on every platform — including darwin, where it would otherwise reach the
+// `security` GUI prompt. Before the file fallback existed, Store simply failed
+// under the opt-out (and on any non-macOS host).
+func TestStore_Headless_FileFallback(t *testing.T) {
+	t.Setenv("AGENT_CLOUDFLARE_NO_KEYCHAIN", "1")
+	dir := t.TempDir()
+	config.SetConfigDir(dir)
+	t.Cleanup(func() { config.SetConfigDir("") })
+
+	storage, err := Store("headless", "cfut-headless-token")
+	if err != nil {
+		t.Fatalf("Store: %v", err)
+	}
+	if storage != "file" {
+		t.Fatalf("storage=%q, want \"file\" (keychain opt-out should force the file path)", storage)
+	}
+
+	path := filepath.Join(dir, "credentials.json")
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("index not written: %v", err)
+	}
+	if mode := info.Mode().Perm(); mode != 0o600 {
+		t.Errorf("index mode=%o, want 0600", mode)
+	}
+	data, _ := os.ReadFile(path)
+	if !strings.Contains(string(data), "cfut-headless-token") {
+		t.Errorf("file should contain the raw token under opt-out; got %s", data)
+	}
+	if strings.Contains(string(data), keychainSentinel) {
+		t.Errorf("file should NOT contain the keychain sentinel under opt-out; got %s", data)
+	}
+
+	got, err := Get("headless")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got != "cfut-headless-token" {
+		t.Errorf("Get=%q, want cfut-headless-token", got)
+	}
+
+	if err := Remove("headless"); err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+	if _, err := Get("headless"); err == nil {
+		t.Error("expected NotFound after Remove")
 	}
 }
