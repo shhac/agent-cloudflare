@@ -44,7 +44,7 @@ For local testing, run `mockcloudflare` and set `--base-url http://127.0.0.1:121
 
 ## Output Contract
 
-Lists default to NDJSON. Single resources default to JSON. Errors include `fixable_by` and usually a `hint`.
+Lists default to NDJSON. **Get (single + multi).** `get <id>...` accepts one or more ids and returns one result per id, in input order. Default output is NDJSON: one line per id — the record, or `{"@unresolved":{"id","reason","fixable_by","hint"?}}` for an id that couldn't be resolved (e.g. not found). `--format json|yaml` collapses to one `{"data":[…],"@unresolved":[…]}` envelope. A single `get <id>` is the one-element case (NDJSON by default; pass `--format json` for the object). Item-level misses stay on stdout and exit 0; only command-level failures (auth, network) go to stderr with exit 1. `zone-settings get` and `waiting-rooms get` scope their zone via `--zone <zone-name-or-id>` (not a trailing positional). `api get` stays single. Errors include `fixable_by` and usually a `hint`.
 
 Investigation output uses evidence records:
 

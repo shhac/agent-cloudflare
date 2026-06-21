@@ -2,7 +2,7 @@
 
 Cloudflare operations CLI for AI agents.
 
-`agent-cloudflare` is read-first and secret-safe by default. It stores Cloudflare API tokens outside model-visible output, emits structured JSON errors, and defaults list output to NDJSON so agents can stream and filter results.
+`agent-cloudflare` is read-first and secret-safe by default. It stores Cloudflare API tokens outside model-visible output, emits structured JSON errors, and defaults list output to NDJSON so agents can stream and filter results. Entity `get` commands accept one or more ids (`get <id>...`) and return one NDJSON line per id — the record or an `{"@unresolved":{...}}` control line for misses — with `--format json|yaml` collapsing to a `{"data":[…],"@unresolved":[…]}` envelope. `zone-settings get` and `waiting-rooms get` scope their zone via `--zone <zone-name-or-id>` (flag, not positional).
 
 ## Quick Start
 

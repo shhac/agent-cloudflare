@@ -4,7 +4,13 @@ Use this reference when interpreting command output, explaining failures, or dec
 
 ## Output Modes
 
-Lists default to NDJSON so agents can stream and process one row at a time. Single resources default to JSON. Commands that produce investigation evidence use NDJSON records with a `type` field.
+Lists default to NDJSON so agents can stream and process one row at a time.
+
+**Get (single + multi).** `get <id>...` takes one or more ids and returns one result per id, in input order. Default output is NDJSON: one line per id — the record, or `{"@unresolved":{"id","reason","fixable_by","hint"?}}` for an id that couldn't be resolved (e.g. not found / bad id). `--format json|yaml` collapses to one `{"data":[…],"@unresolved":[…]}` envelope. A single `get <id>` is just the one-element case (NDJSON one line by default; was pretty JSON before — pass `--format json` for the object). Item-level misses stay on stdout and exit 0; only a command-level failure (auth, network) goes to stderr with exit 1 and empty stdout.
+
+**Cloudflare-specific scope flag.** `zone-settings get <setting-id>...` and `waiting-rooms get <waiting-room-id>...` take zone scope via `--zone <zone-name-or-id>` (a flag, not a trailing positional argument). `api get` stays single (raw escape hatch, not an entity get).
+
+Commands that produce investigation evidence use NDJSON records with a `type` field.
 
 Example evidence rows:
 

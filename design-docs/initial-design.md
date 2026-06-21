@@ -61,7 +61,11 @@ The native dialog asks for the token outside the terminal/chat context. The CLI 
 
 ## Output contract
 
-Lists default to NDJSON so an LLM can stream, truncate, and resume without parsing large arrays. Single resources default to pretty JSON.
+Lists default to NDJSON so an LLM can stream, truncate, and resume without parsing large arrays.
+
+**Get (single + multi).** Entity `get` commands accept `get <id>...` (one or more ids) and emit one result per id, in input order, as NDJSON: the record, or `{"@unresolved":{"id","reason","fixable_by","hint"?}}` for an id that couldn't be resolved (not found, bad id). `--format json|yaml` collapses all results into a `{"data":[…],"@unresolved":[…]}` envelope. A single `get <id>` is the one-element case — NDJSON by default (was pretty JSON before; pass `--format json` for the object). Item-level misses stay on stdout and exit 0; only command-level failures (auth, network, bad flag) write a `{error}` JSON object to stderr and exit 1.
+
+**Cloudflare-specific: zone scope as flag.** `zone-settings get <setting-id>...` and `waiting-rooms get <waiting-room-id>...` scope their zone via `--zone <zone-name-or-id>` (a flag). The trailing positional `[zone]` pattern was removed to support multi-id gets. `api get` stays single (raw escape hatch, not an entity get).
 
 Errors are JSON on stderr:
 

@@ -37,7 +37,8 @@ Read-only exploration:
   agent-cloudflare investigate traffic-spike example.com --since 1h
   agent-cloudflare snapshot zone example.com
   agent-cloudflare baseline check example.com --file baseline.json
-  agent-cloudflare zone-settings get <setting-id> example.com
+  agent-cloudflare zone-settings get <setting-id>... [--zone <zone-name-or-id>]
+  agent-cloudflare waiting-rooms get <waiting-room-id>... [--zone <zone-name-or-id>]
   agent-cloudflare api get /zones --query name=example.com
 
 Explicit mutations:
@@ -48,7 +49,13 @@ Explicit mutations:
 
 Output:
   Lists default to NDJSON/jsonl.
-  Single resources default to JSON.
+  Get (single + multi): get <id>... accepts one or more ids and returns one result per id, in input order.
+  Default output is NDJSON: one line per id — the record, or {"@unresolved":{"id","reason","fixable_by","hint"?}} for
+  an id that couldn't be resolved (e.g. not found). --format json|yaml collapses to one {"data":[…],"@unresolved":[…]}
+  envelope. A single get <id> is the one-element case (NDJSON by default; pass --format json for the object).
+  Item-level misses stay on stdout, exit 0; only command-level failures (auth, network) go to stderr, exit 1.
+  zone-settings get and waiting-rooms get scope their zone via --zone <zone-name-or-id> (not a trailing positional).
+  api get stays single (raw escape hatch, not an entity get).
   Errors are JSON on stderr: {"error":"...","fixable_by":"agent"|"human"|"retry","hint"?:"...","retry_after_seconds"?:N} (hint and retry_after_seconds optional).
 
 Secrets:
