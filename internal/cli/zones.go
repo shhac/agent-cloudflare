@@ -42,22 +42,20 @@ func registerZones(root *cobra.Command, globals shared.GlobalsFunc) {
 	list.Flags().StringVar(&status, "status", "", "Filter by zone status")
 
 	get := &cobra.Command{
-		Use:   "get <zone-name-or-id>",
-		Short: "Get one zone by ID or exact zone name",
-		Args:  cobra.ExactArgs(1),
+		Use:   "get <zone-name-or-id>...",
+		Short: "Get one or more zones by ID or exact zone name",
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags := globals()
-			return shared.WithClient(flags, func(ctx context.Context, client *api.Client, resolved *shared.ResolvedProfile) error {
-				zoneID, err := resolveZoneID(ctx, client, resolved, args[0])
+			return shared.GetEntities(globals(), args, func(ctx context.Context, client *api.Client, resolved *shared.ResolvedProfile, id string) (any, error) {
+				zoneID, err := resolveZoneID(ctx, client, resolved, id)
 				if err != nil {
-					return err
+					return nil, err
 				}
 				raw, err := client.Zone(ctx, zoneID)
 				if err != nil {
-					return err
+					return nil, err
 				}
-				shared.WriteRawItem(raw, flags.Format)
-				return nil
+				return decodeRaw(raw)
 			})
 		},
 	}

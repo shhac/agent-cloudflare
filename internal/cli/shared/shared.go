@@ -17,6 +17,19 @@ import (
 	"github.com/shhac/agent-cloudflare/internal/output"
 )
 
+// GetEntities runs the family's multi-capable get for the cloudflare domain:
+// it sets up one client, then resolves each id through getOne and streams the
+// result per the shared get contract (NDJSON by default — one record or
+// {"@unresolved":…} per id in input order; item-level misses stay on stdout,
+// command-level failures bubble to the single sink).
+func GetEntities(flags *GlobalFlags, args []string, getOne func(ctx context.Context, client *api.Client, resolved *ResolvedProfile, id string) (any, error)) error {
+	return WithClient(flags, func(ctx context.Context, client *api.Client, resolved *ResolvedProfile) error {
+		return libcli.EntityGet(output.Stdout(), flags.Format, args, func(id string) (any, error) {
+			return getOne(ctx, client, resolved, id)
+		})
+	})
+}
+
 type GlobalFlags struct {
 	libcli.Globals // Format, TimeoutMS, Debug
 

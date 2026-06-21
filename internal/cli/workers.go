@@ -33,39 +33,44 @@ func registerWorkers(root *cobra.Command, globals shared.GlobalsFunc) {
 		},
 	}
 	get := &cobra.Command{
-		Use:   "get <script-name>",
-		Short: "Get Workers script operational metadata",
-		Args:  cobra.ExactArgs(1),
+		Use:   "get <script-name>...",
+		Short: "Get Workers script operational metadata (one or more names)",
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags := globals()
-			return shared.WithClient(flags, func(ctx context.Context, client *api.Client, resolved *shared.ResolvedProfile) error {
-				accountID, err := requireAccountID(resolved)
+			// Resolve accountID before the per-id loop so a missing account is a
+			// command-level error (stderr + exit 1) rather than per-id @unresolved.
+			resolved, err := shared.ResolveProfile(flags)
+			if err != nil {
+				return err
+			}
+			accountID, err := requireAccountID(resolved)
+			if err != nil {
+				return err
+			}
+			return shared.GetEntities(flags, args, func(ctx context.Context, client *api.Client, _ *shared.ResolvedProfile, id string) (any, error) {
+				subdomain, err := client.WorkerSubdomain(ctx, accountID, id)
 				if err != nil {
-					return err
+					return nil, err
 				}
-				subdomain, err := client.WorkerSubdomain(ctx, accountID, args[0])
+				versions, info, err := client.WorkerVersions(ctx, accountID, id, nil)
 				if err != nil {
-					return err
-				}
-				versions, info, err := client.WorkerVersions(ctx, accountID, args[0], nil)
-				if err != nil {
-					return err
+					return nil, err
 				}
 				decodedVersions, err := shared.RawItemsToAny(versions)
 				if err != nil {
-					return err
+					return nil, err
 				}
 				decodedSubdomain, err := decodeRaw(subdomain)
 				if err != nil {
-					return err
+					return nil, err
 				}
-				shared.WriteItem(map[string]any{
-					"script_name": args[0],
+				return map[string]any{
+					"script_name": id,
 					"subdomain":   decodedSubdomain,
 					"versions":    decodedVersions,
 					"pagination":  info,
-				}, flags.Format)
-				return nil
+				}, nil
 			})
 		},
 	}

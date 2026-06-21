@@ -389,6 +389,119 @@ func TestSnapshotAndBaselineCommands(t *testing.T) {
 	}
 }
 
+func TestEntityGetSmoke(t *testing.T) {
+	baseURL := withMockServer(t)
+	baseArgs := []string{"--base-url", baseURL, "--api-token", "cfut_mock"}
+
+	t.Run("zones get single NDJSON", func(t *testing.T) {
+		result := runCommand(t, append(baseArgs, "zones", "get", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")...)
+		if result.err != nil || result.stderr != "" {
+			t.Fatalf("err=%v stderr=%s stdout=%s", result.err, result.stderr, result.stdout)
+		}
+		if !strings.Contains(result.stdout, `"example.com"`) {
+			t.Fatalf("stdout = %s, want example.com", result.stdout)
+		}
+	})
+
+	t.Run("zones get multi NDJSON two records", func(t *testing.T) {
+		result := runCommand(t, append(baseArgs, "zones", "get", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")...)
+		if result.err != nil || result.stderr != "" {
+			t.Fatalf("err=%v stderr=%s stdout=%s", result.err, result.stderr, result.stdout)
+		}
+		lines := strings.Split(strings.TrimSpace(result.stdout), "\n")
+		if len(lines) != 2 {
+			t.Fatalf("want 2 NDJSON lines, got %d: %s", len(lines), result.stdout)
+		}
+	})
+
+	t.Run("zones get multi with miss emits @unresolved", func(t *testing.T) {
+		result := runCommand(t, append(baseArgs, "zones", "get", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "ffffffffffffffffffffffffffffffff")...)
+		// command-level exit 0, bad id → @unresolved on stdout
+		if result.err != nil {
+			t.Fatalf("unexpected err=%v stderr=%s", result.err, result.stderr)
+		}
+		if !strings.Contains(result.stdout, `"@unresolved"`) {
+			t.Fatalf("stdout = %s, want @unresolved for missing zone", result.stdout)
+		}
+		if !strings.Contains(result.stdout, `"example.com"`) {
+			t.Fatalf("stdout = %s, want first zone still present", result.stdout)
+		}
+	})
+
+	t.Run("zone-settings get with --zone flag", func(t *testing.T) {
+		result := runCommand(t, append(baseArgs, "zone-settings", "get", "ssl", "--zone", "example.com")...)
+		if result.err != nil || result.stderr != "" {
+			t.Fatalf("err=%v stderr=%s stdout=%s", result.err, result.stderr, result.stdout)
+		}
+		if !strings.Contains(result.stdout, `"ssl"`) {
+			t.Fatalf("stdout = %s, want ssl setting", result.stdout)
+		}
+	})
+
+	t.Run("zone-settings get multi with --zone", func(t *testing.T) {
+		result := runCommand(t, append(baseArgs, "zone-settings", "get", "ssl", "brotli", "--zone", "example.com")...)
+		if result.err != nil || result.stderr != "" {
+			t.Fatalf("err=%v stderr=%s stdout=%s", result.err, result.stderr, result.stdout)
+		}
+		lines := strings.Split(strings.TrimSpace(result.stdout), "\n")
+		if len(lines) != 2 {
+			t.Fatalf("want 2 NDJSON lines, got %d: %s", len(lines), result.stdout)
+		}
+	})
+
+	t.Run("zone-settings get missing setting emits @unresolved", func(t *testing.T) {
+		result := runCommand(t, append(baseArgs, "zone-settings", "get", "ssl", "nonexistent_setting", "--zone", "example.com")...)
+		if result.err != nil {
+			t.Fatalf("unexpected err=%v stderr=%s", result.err, result.stderr)
+		}
+		if !strings.Contains(result.stdout, `"@unresolved"`) {
+			t.Fatalf("stdout = %s, want @unresolved for missing setting", result.stdout)
+		}
+	})
+
+	t.Run("waiting-rooms get with --zone flag", func(t *testing.T) {
+		result := runCommand(t, append(baseArgs, "waiting-rooms", "get", "wr_mock_sale", "--zone", "example.com")...)
+		if result.err != nil || result.stderr != "" {
+			t.Fatalf("err=%v stderr=%s stdout=%s", result.err, result.stderr, result.stdout)
+		}
+		if !strings.Contains(result.stdout, `"sale-room"`) {
+			t.Fatalf("stdout = %s, want sale-room", result.stdout)
+		}
+	})
+
+	t.Run("waiting-rooms get missing room emits @unresolved", func(t *testing.T) {
+		result := runCommand(t, append(baseArgs, "waiting-rooms", "get", "wr_mock_sale", "no_such_room", "--zone", "example.com")...)
+		if result.err != nil {
+			t.Fatalf("unexpected err=%v stderr=%s", result.err, result.stderr)
+		}
+		if !strings.Contains(result.stdout, `"@unresolved"`) {
+			t.Fatalf("stdout = %s, want @unresolved for missing room", result.stdout)
+		}
+		if !strings.Contains(result.stdout, `"sale-room"`) {
+			t.Fatalf("stdout = %s, want first room still present", result.stdout)
+		}
+	})
+}
+
+func TestEntityGetCommandLevelError(t *testing.T) {
+	baseURL := withMockServer(t)
+	// Missing --account-id for account-scoped resource → command-level stderr error, exit 1
+	result := runExecute(t, "--base-url", baseURL, "--api-token", "cfut_mock", "workers", "get", "api-worker")
+	if result.err == nil {
+		t.Fatalf("expected command error when no account is resolvable")
+	}
+	if result.stdout != "" {
+		t.Fatalf("stdout = %s, want empty on command-level error", result.stdout)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(result.stderr), &payload); err != nil {
+		t.Fatalf("stderr is not JSON: %s", result.stderr)
+	}
+	if payload["fixable_by"] != "agent" {
+		t.Fatalf("payload = %#v, want fixable_by:agent", payload)
+	}
+}
+
 func TestMutationCommandsRequireDryRunOrConfirm(t *testing.T) {
 	baseURL := withMockServer(t)
 	result := runExecute(t, "--base-url", baseURL, "--api-token", "cfut_mock", "cache", "purge", "example.com", "--url", "https://example.com/a")

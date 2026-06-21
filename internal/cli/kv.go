@@ -37,22 +37,25 @@ func registerKV(root *cobra.Command, globals shared.GlobalsFunc) {
 		},
 	}
 	get := &cobra.Command{
-		Use:   "get <namespace-id>",
-		Short: "Get one KV namespace",
-		Args:  cobra.ExactArgs(1),
+		Use:   "get <namespace-id>...",
+		Short: "Get one or more KV namespaces",
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags := globals()
-			return shared.WithClient(flags, func(ctx context.Context, client *api.Client, resolved *shared.ResolvedProfile) error {
-				accountID, err := requireAccountID(resolved)
+			resolved, err := shared.ResolveProfile(flags)
+			if err != nil {
+				return err
+			}
+			accountID, err := requireAccountID(resolved)
+			if err != nil {
+				return err
+			}
+			return shared.GetEntities(flags, args, func(ctx context.Context, client *api.Client, _ *shared.ResolvedProfile, id string) (any, error) {
+				raw, err := client.KVNamespace(ctx, accountID, id)
 				if err != nil {
-					return err
+					return nil, err
 				}
-				raw, err := client.KVNamespace(ctx, accountID, args[0])
-				if err != nil {
-					return err
-				}
-				shared.WriteRawItem(raw, flags.Format)
-				return nil
+				return decodeRaw(raw)
 			})
 		},
 	}
