@@ -86,6 +86,23 @@ func Store(name, token string) (string, error) {
 	return storage, nil
 }
 
+// Storage reports where a stored credential lives: "keychain" or "file". It
+// returns a *NotFoundError when no credential is stored for name. Read-only.
+func Storage(name string) (string, error) {
+	index, err := readIndex()
+	if err != nil {
+		return "", err
+	}
+	entry, ok := index[name]
+	if !ok {
+		return "", &NotFoundError{Name: name}
+	}
+	if entry.KeychainManaged {
+		return "keychain", nil
+	}
+	return "file", nil
+}
+
 func Get(name string) (string, error) {
 	index, err := readIndex()
 	if err != nil {

@@ -175,6 +175,11 @@ func runProfileUpdate(req profileUpdateRequest) error {
 				WithHint("Run 'agent-cloudflare profiles list' to see configured profiles")
 		}
 	}
+	if storage == "" {
+		if existing, err := credentialStorage(req.Alias); err == nil {
+			storage = existing
+		}
+	}
 	cfg := config.Read()
 	profile := cfg.Profiles[req.Alias]
 	item := profileUpdateOutput(req.Alias, profile, cfg.DefaultProfile == req.Alias, storage)
@@ -225,11 +230,8 @@ func profileUpdateOutput(alias string, profile config.Profile, isDefault bool, s
 		"account_name":    profile.AccountName,
 		"default_zone_id": profile.DefaultZoneID,
 		"default_zone":    profile.DefaultZone,
-		"credential":      "keychain",
+		"storage":         storage,
 		"credential_type": profile.CredentialType,
-	}
-	if storage != "" {
-		item["storage"] = storage
 	}
 	return item
 }

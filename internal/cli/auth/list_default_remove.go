@@ -33,16 +33,19 @@ func registerList(parent *cobra.Command) {
 			cfg := config.Read()
 			profiles := make([]map[string]any, 0, len(cfg.Profiles))
 			for alias, profile := range cfg.Profiles {
-				profiles = append(profiles, map[string]any{
+				item := map[string]any{
 					"profile":         alias,
 					"default":         alias == cfg.DefaultProfile,
 					"account_id":      profile.AccountID,
 					"account_name":    profile.AccountName,
 					"default_zone_id": profile.DefaultZoneID,
 					"default_zone":    profile.DefaultZone,
-					"credential":      "keychain",
 					"credential_type": profile.CredentialType,
-				})
+				}
+				if storage, err := credentialStorage(alias); err == nil {
+					item["storage"] = storage
+				}
+				profiles = append(profiles, item)
 			}
 			sort.Slice(profiles, func(i, j int) bool {
 				return profiles[i]["profile"].(string) < profiles[j]["profile"].(string)
