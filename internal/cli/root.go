@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	agentmcp "github.com/shhac/lib-agent-mcp"
 	libcli "github.com/shhac/lib-agent-cli/cli"
 
 	"github.com/shhac/agent-cloudflare/internal/cli/auth"
@@ -64,6 +65,11 @@ func NewRootCmd(version string) *cobra.Command {
 	// unknown leaf — e.g. "dns bogus" or "kv namespaces bogus" — returns a
 	// structured error listing that group's commands instead of cobra usage text.
 	installGroupUnknownHandlers(root)
+
+	// Expose the whole command tree as an MCP server (added last, so it reflects
+	// the complete tree). --color/--expose are output-shaping, irrelevant to a
+	// tool call, so hide them from the generated schemas.
+	root.AddCommand(agentmcp.Command(root, agentmcp.WithHiddenFlags("color", "expose")))
 
 	return root
 }
