@@ -54,3 +54,7 @@ make build-mock
 Releases are manual. Follow [.agents/commands/release.md](.agents/commands/release.md) for version bump, tag, build, GitHub release, and Homebrew tap steps.
 
 Design notes live in [design-docs/initial-design.md](design-docs/initial-design.md).
+
+## License
+
+PolyForm Perimeter License 1.0.0 — see [LICENSE](LICENSE).
