@@ -4,6 +4,10 @@ import "github.com/shhac/lib-agent-cli/creds"
 
 const keychainService = "app.paulie.agent-cloudflare"
 
+// MCPKeychainService is the Keychain service for the MCP server's local-OAuth
+// secrets — the CLI's service plus a ".mcp" namespace, separate from the API creds.
+func MCPKeychainService() string { return keychainService + ".mcp" }
+
 // keychainBackend adapts creds.Keychain to the local backend interface,
 // preserving the not-found-as-error contract callers rely on.
 type keychainBackend struct {

@@ -11,6 +11,7 @@ import (
 	"github.com/shhac/agent-cloudflare/internal/cli/auth"
 	"github.com/shhac/agent-cloudflare/internal/cli/shared"
 	"github.com/shhac/agent-cloudflare/internal/config"
+	"github.com/shhac/agent-cloudflare/internal/credential"
 	"github.com/shhac/agent-cloudflare/internal/output"
 )
 
@@ -76,7 +77,12 @@ func NewRootCmd(version string) *cobra.Command {
 	exposeGroups(root,
 		"accounts", "analytics", "api", "audit", "baseline", "cache", "dns", "investigate", "kv", "r2", "rulesets", "snapshot", "ssl", "waiting-rooms", "workers", "zone-settings", "zones")
 
-	root.AddCommand(agentmcp.Command(root, agentmcp.WithHiddenFlags("color", "expose")))
+	// Store local-OAuth secrets under the family reverse-DNS service
+	// (app.paulie.agent-cloudflare.mcp), separate from the API credentials.
+	root.AddCommand(agentmcp.Command(root,
+		agentmcp.WithHiddenFlags("color", "expose"),
+		agentmcp.WithOAuthKeyringService(credential.MCPKeychainService()),
+	))
 
 	return root
 }
