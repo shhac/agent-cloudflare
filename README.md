@@ -4,6 +4,14 @@ Cloudflare operations CLI for AI agents.
 
 `agent-cloudflare` is read-first and secret-safe by default. It stores Cloudflare API tokens outside model-visible output, emits structured JSON errors, and defaults list output to NDJSON so agents can stream and filter results. Entity `get` commands accept one or more ids (`get <id>...`) and return one NDJSON line per id — the record or an `{"@unresolved":{...}}` control line for misses — with `--format json|yaml` collapsing to a `{"data":[…],"@unresolved":[…]}` envelope. `zone-settings get` and `waiting-rooms get` scope their zone via `--zone <zone-name-or-id>` (flag, not positional).
 
+## Claude Code / AI agent skill
+
+```bash
+npx skills add shhac/agent-skills --skill agent-cloudflare --global
+```
+
+Installs the `agent-cloudflare` skill globally so Claude Code (and other AI agents) can discover and use it automatically. It ships from [`shhac/agent-skills`](https://github.com/shhac/agent-skills) — the whole family's skills in one repo, so `npx skills update` checks a single source no matter how many you use. Want several at once? Run `npx skills add shhac/agent-skills --global` and pick from the list.
+
 ## Quick Start
 
 ```bash
