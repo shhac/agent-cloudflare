@@ -1,7 +1,7 @@
 ---
 name: agent-cloudflare
 description: |
-  Investigate Cloudflare accounts, zones, DNS, SSL/TLS, rulesets, cache, Workers, KV, R2, Waiting Rooms, audit logs, analytics, snapshots, and guarded mutations using a secret-safe CLI. Use when:
+  Read-first Cloudflare operations triage for AI agents. Covers accounts, zones, DNS, SSL/TLS, rulesets, cache, Workers, KV, R2, Waiting Rooms, audit logs, analytics, snapshots, and guarded mutations, all via a secret-safe CLI. Use when:
   - Checking Cloudflare zone configuration or DNS records
   - Investigating Cloudflare traffic, cache, WAF/rulesets, SSL/TLS, Waiting Room, Worker, KV, R2, or audit-log context
   - Looking up account/zone IDs for Cloudflare resources
